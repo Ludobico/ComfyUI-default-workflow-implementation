@@ -1,0 +1,7 @@
+models/checkpoints/*
+models/CLIP/*
+!models/checkpoints/.gitkeep
+models/CLIP/.gitkeep
+*.pyc
+__pycache__/
+__pycache__
