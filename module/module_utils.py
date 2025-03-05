@@ -2,13 +2,12 @@ import os
 from typing import Literal, Optional, Dict
 from safetensors.torch import load_file
 from utils import get_cpu_device, get_torch_device, highlight_print
-from module.model_state import get_model_keys, is_clip_tensor
 import torch
 from config.getenv import GetEnv
 
 env = GetEnv()
 
-def load_safetensors_file(ckpt, device : Literal['auto', 'gpu', 'cpu'] = 'auto'):
+def load_checkpoint_file(ckpt, device : Literal['auto', 'gpu', 'cpu'] = 'auto'):
     """
     Load a model file (either .safetensors or .ckpt).
     """
@@ -29,12 +28,25 @@ def load_safetensors_file(ckpt, device : Literal['auto', 'gpu', 'cpu'] = 'auto')
             sd = model['state_dict']
         else:
             sd = model
+    else:
+        raise ValueError(f"{os.path.basename(ckpt)} is not a `safetensors` or `ckpt`")
     return sd
 
 def auto_model_detection(ckpt) -> str:
     """
-    Is it stable diffusion? or SDXL?
+    Is it a stable diffusion? or SDXL?\n
+
+    ```python
+    model = "path/to/stable_diffusion_v1-5.ckpt"
+    model_type = auto_model_detection(model)
+    print(model_type) # 'sd15'
+
+    model = "path/to/sd_xl_base_1.safetensors"
+    model_type = auto_model_detection(model)
+    print(model_type) # 'sdxl'
+    ```
     """
+    from module.model_state import get_model_keys
     sd = get_model_keys(ckpt, return_type='list', save_as_file=False)
 
     prefix_sd = [[part for part in item.split('.')[:1]] for item in sd]
@@ -50,13 +62,14 @@ def auto_model_detection(ckpt) -> str:
     # Remove duplicates from list
     preprocess_sd2 = list(set(preprocess_sd1))
     
-    if preprocess_sd2 in 'cond_stage_model':
+    if 'cond_stage_model' in preprocess_sd2:
         return 'sd15'
     
-    if preprocess_sd2 in 'conditioner':
+    if 'conditioner' in preprocess_sd2:
         return 'sdxl'
     
-    return False
+    else:
+        raise ValueError("Cannot determine model type : No clear CLIP keys found in the state_dict.")
 
 
 
