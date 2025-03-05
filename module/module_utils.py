@@ -1,15 +1,16 @@
-from typing import Literal, Optional
+import os
+from typing import Literal, Optional, Dict
 from safetensors.torch import load_file
 from utils import get_cpu_device, get_torch_device, highlight_print
+from module.model_state import get_model_keys, is_clip_tensor
 import torch
-import os
 from config.getenv import GetEnv
 
 env = GetEnv()
 
 def load_safetensors_file(ckpt, device : Literal['auto', 'gpu', 'cpu'] = 'auto'):
     """
-    It works a safetensors file only.
+    Load a model file (either .safetensors or .ckpt).
     """
     if device == 'auto' or device == 'gpu':
         device = get_torch_device()
@@ -18,22 +19,45 @@ def load_safetensors_file(ckpt, device : Literal['auto', 'gpu', 'cpu'] = 'auto')
     else:
         device = get_torch_device()
     
-    sd = load_file(ckpt, device=device)
+    ext = os.path.splitext(ckpt)[-1].lower()
+
+    if ext == '.safetensors':
+        sd = load_file(ckpt, device=device)
+    elif ext == '.ckpt':
+        model = torch.load(ckpt, map_location=device)
+        if "state_dict" in model:
+            sd = model['state_dict']
+        else:
+            sd = model
     return sd
 
-def get_model_keys(ckpt, save_name : Optional[str] = None, device : Literal['auto', 'gpu', 'cpu'] = 'auto'):
-    
-    if save_name is None:
-        prefix_name = os.path.basename(ckpt).split('.')[0]
-        save_name = f"{prefix_name}_keys.txt"
-    
-    save_path = os.path.join(env.get_output_dir(), save_name)
-    sd = load_safetensors_file(ckpt, device=device)
+def auto_model_detection(ckpt) -> str:
+    """
+    Is it stable diffusion? or SDXL?
+    """
+    sd = get_model_keys(ckpt, return_type='list', save_as_file=False)
 
-    keys = '\n'.join(sorted(sd.keys()))
-
-    with open(save_path, 'w', encoding='utf-8') as f:
-        f.write(keys)
+    prefix_sd = [[part for part in item.split('.')[:1]] for item in sd]
     
-    highlight_print(f"Model keys are saved at : {save_path}", 'green')
-    return True
+    def flatten(lst):
+        result = []
+        for item in lst:
+            result.extend(item)
+        return result
+    
+    # Flatten a nested lits into a single list
+    preprocess_sd1 = flatten(prefix_sd)
+    # Remove duplicates from list
+    preprocess_sd2 = list(set(preprocess_sd1))
+    
+    if preprocess_sd2 in 'cond_stage_model':
+        return 'sd15'
+    
+    if preprocess_sd2 in 'conditioner':
+        return 'sdxl'
+    
+    return False
+
+
+
+
