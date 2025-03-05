@@ -5,6 +5,9 @@ class GetEnv:
     def __init__(self):
         self.curdir = os.path.dirname(os.path.abspath(__file__))
     
+    def get_project_dir(self):
+        project_dir = os.path.abspath(os.path.join(self.curdir, '..'))
+        return project_dir
     def get_model_dir(self):
         model_dir = os.path.join(self.curdir, '..' ,'models')
         return model_dir
@@ -16,3 +19,7 @@ class GetEnv:
     def get_checkpoint_model_dir(self):
         checkpoint_model_dir = os.path.join(self.get_model_dir(), 'checkpoints')
         return checkpoint_model_dir
+    
+    def get_output_dir(self):
+        output_dir = os.path.join(self.get_project_dir(), 'output')
+        return output_dir

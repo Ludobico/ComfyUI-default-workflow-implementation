@@ -1,6 +1,9 @@
 from config.getenv import GetEnv
 from utils import highlight_print
+from module.module_utils import get_model_keys
 
 env = GetEnv()
 
-highlight_print(env.get_clip_model_dir())
+model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
+
+get_model_keys(model_path, device='cpu')

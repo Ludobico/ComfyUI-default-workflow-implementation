@@ -2,6 +2,8 @@ models/checkpoints/*
 models/CLIP/*
 !models/checkpoints/.gitkeep
 models/CLIP/.gitkeep
+output/*
+!output/.gitkeep
 *.pyc
 __pycache__/
 __pycache__
