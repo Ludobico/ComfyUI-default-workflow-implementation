@@ -1,6 +1,6 @@
 from module.model_architecture import Unet
 import torch
-from module.model_state import load_unet_tensors, extract_model_components
+from module.model_state import load_diffusers_from_sdxl, extract_model_components
 from utils import get_torch_device
 
 
@@ -11,4 +11,4 @@ unet = Unet.sdxl()
 device = get_torch_device()
 unet_tensors, clip_tensors, vae_tensors = extract_model_components(model_path)
 
-updated_unet = load_unet_tensors(unet, unet_tensors)
+updated_unet = load_diffusers_from_sdxl(unet, unet_tensors)

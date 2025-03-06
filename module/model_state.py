@@ -6,7 +6,7 @@ import torch
 from config.getenv import GetEnv
 from module.module_utils import load_checkpoint_file, auto_model_detection
 from diffusers import UNet2DConditionModel
-from module.converter.convert_original_sdxl_to_diffusers import convert_sdxl_unet_to_diffusers
+from module.converter.conversion import convert_sdxl_to_diffusers
 
 env = GetEnv()
 
@@ -51,27 +51,9 @@ def is_vae_tensor(key, model_type : Literal['sd15', 'sdxl']):
         return key.startswith("first_stage_model.")
     return False
 
-def extract_model_components(ckpt, strip_prefix : bool = False) -> Tuple[Dict, Dict, Dict]:
+def extract_model_components(ckpt) -> Tuple[Dict, Dict, Dict]:
     """
     Extracts UNet, CLIP, VAE weights from a checkpoint as a dictionary\n
-
-    Args:
-        strip_prefix : removes a common prefix for transforming to Diffuser from a checkpoint e.g
-    
-        
-    ```python
-    # weights with prefix
-    model.diffusion_model.time_embed.0.bias
-    model.diffusion_model.time_embed.0.weight
-    model.diffusion_model.time_embed.2.bias
-    model.diffusion_model.time_embed.2.weight
-
-    # weights without prefix
-    time_embed.0.bias
-    time_embed.0.weight
-    time_embed.2.bias
-    time_embed.2.weight
-    ```
     """
     unet_tensors = {}
     clip_tensors = {}
@@ -81,13 +63,6 @@ def extract_model_components(ckpt, strip_prefix : bool = False) -> Tuple[Dict, D
     tensors = load_checkpoint_file(ckpt, device='cpu')
 
     for key, tensor in tensors.items():
-        # a key to strip prefix
-        new_key = key
-
-        if strip_prefix:
-            if is_unet_tensor(key, model_type):
-                new_key = key.replace("model.diffusion_model.", "")
-            
         if is_unet_tensor(key, model_type):
             unet_tensors[key] = tensor.cpu()
         elif is_clip_tensor(key, model_type):
@@ -98,16 +73,18 @@ def extract_model_components(ckpt, strip_prefix : bool = False) -> Tuple[Dict, D
     return unet_tensors, clip_tensors, vae_tensors
 
 
-def load_unet_tensors(unet_model : UNet2DConditionModel, unet_tensors : Dict[str, torch.Tensor]):
+def load_diffusers_from_sdxl(unet_model : UNet2DConditionModel, unet_tensors : Dict[str, torch.Tensor]):
     model_state_dict = unet_model.state_dict()
-    converted_state_dict = convert_sdxl_unet_to_diffusers(unet_tensors)
 
-    with open(os.path.join(env.get_output_dir(), 'model_state_dict.txt'), 'w', encoding='utf-8') as f:
-        keys = '\n'.join(sorted(model_state_dict.keys()))
-        f.write(keys)
-    with open(os.path.join(env.get_output_dir(), 'converted_state_dict.txt'), 'w', encoding='utf-8') as f:
-        keys = '\n'.join(sorted(converted_state_dict.keys()))
-        f.write(keys)
+    converted_dict = convert_sdxl_to_diffusers(unet_tensors)
+    converted_state_dict = converted_dict['unet']
+
+    # with open(os.path.join(env.get_output_dir(), 'model_state_dict.txt'), 'w', encoding='utf-8') as f:
+    #     keys = '\n'.join(sorted(model_state_dict.keys()))
+    #     f.write(keys)
+    # with open(os.path.join(env.get_output_dir(), 'converted_state_dict.txt'), 'w', encoding='utf-8') as f:
+    #     keys = '\n'.join(sorted(converted_state_dict.keys()))
+    #     f.write(keys)
 
     updated_state_dict = {}
     for key, tensor in converted_state_dict.items():
