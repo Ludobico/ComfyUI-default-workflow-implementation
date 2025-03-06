@@ -4,6 +4,7 @@ from safetensors.torch import load_file
 from utils import get_cpu_device, get_torch_device, highlight_print
 import torch
 from config.getenv import GetEnv
+from diffusers import UNet2DConditionModel
 
 env = GetEnv()
 
@@ -72,5 +73,17 @@ def auto_model_detection(ckpt) -> str:
         raise ValueError("Cannot determine model type : No clear CLIP keys found in the state_dict.")
 
 
+def compare_unet_models(model1: UNet2DConditionModel, model2: UNet2DConditionModel):
+    state_dict1 = model1.state_dict()
+    state_dict2 = model2.state_dict()
 
+    for key in state_dict1.keys():
+        if key not in state_dict2:
+            print(f"{key} is missing in model2")
+            return False
+        if not torch.allclose(state_dict1[key], state_dict2[key], atol=1e-6):
+            print(f"{key} values are different")
+            return False
 
+    print("Both models are identical")
+    return True

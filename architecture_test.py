@@ -1,7 +1,13 @@
+import os
 from module.model_architecture import Unet
 import torch
-from module.model_state import load_diffusers_from_sdxl, extract_model_components
+from module.model_state import  extract_model_components
 from utils import get_torch_device
+from config.getenv import GetEnv
+from module.module_utils import compare_unet_models
+from module.converter.conversion import convert_unet_from_origin_sdxl
+
+env = GetEnv()
 
 
 model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
@@ -9,6 +15,6 @@ model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-imp
 
 unet = Unet.sdxl()
 device = get_torch_device()
-unet_tensors, clip_tensors, vae_tensors = extract_model_components(model_path)
+ckpt_unet_tensors, clip_tensors, vae_tensors = extract_model_components(model_path)
 
-updated_unet = load_diffusers_from_sdxl(unet, unet_tensors)
+converted = convert_unet_from_origin_sdxl(unet.state_dict(), ckpt_unet_tensors)

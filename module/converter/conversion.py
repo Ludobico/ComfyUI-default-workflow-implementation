@@ -1,25 +1,26 @@
-from module.converter import convert_diffusers_to_original_sdxl as csdxl
+from diffusers.pipelines.stable_diffusion.convert_from_ckpt import convert_ldm_unet_checkpoint
 from typing import Dict
-from diffusers import StableDiffusionXLPipeline
-def convert_sdxl_to_diffusers(tensors_dict :Dict):
-    unet_state_dict = {k.replace("model.diffusion_model.", ""): v for k, v in tensors_dict.items() if k.startswith("model.diffusion_model.")}
-    unet_state_dict = csdxl.convert_unet_state_dict(unet_state_dict)
+import os, sys
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+from config.getenv import GetEnv
+from module.model_architecture import Unet
+from module.model_state import  extract_model_components
+from utils import get_torch_device
 
-    # vae_state_dict = {k.replace("first_stage_model.", ""): v for k, v in tensors_dict.items() if k.startswith("first_stage_model")}
-    # vae_state_dict = csdxl.revese_convert_vae_sd(vae_state_dict)
+def convert_unet_from_origin_sdxl(unet_sd : Dict, sdxl_unet_sd : Dict):
+    path = ""
+    converted_unet_checkpoint = convert_ldm_unet_checkpoint(sdxl_unet_sd, unet_sd, path)
+    return converted_unet_checkpoint
 
-    # text_enc_dict = {k.replace("conditioner.embedders.0.transformer.", ""): v for k, v in tensors_dict.items() if k.startswith("conditioner.embedders.0.transformer")}
-    # text_enc_dict = csdxl.reverse_convert_clip_sd(text_enc_dict)
+if __name__ == "__main__":
+    env = GetEnv()
 
-    # text_enc_2_dict = {k.replace("conditioner.embedders.1.model.", ""): v for k, v in tensors_dict.items() if k.startswith("conditioner.embedders.1.model")}
-    # text_enc_2_dict = csdxl.reverse_convert_clip_sd(text_enc_2_dict)
 
-    return {
-        "unet": unet_state_dict,
-        # "vae": vae_state_dict,
-        # "text_encoder": text_enc_dict,
-        # "text_encoder_2": text_enc_2_dict
-    }
+    model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
 
-def convert_sdxl_to_diffusers():
-    pass
+
+    unet = Unet.sdxl()
+    device = get_torch_device()
+    ckpt_unet_tensors, clip_tensors, vae_tensors = extract_model_components(model_path)
+
+    converted = convert_unet_from_origin_sdxl(unet.state_dict(), ckpt_unet_tensors)

@@ -5,8 +5,8 @@ from utils import get_cpu_device, get_torch_device, highlight_print
 import torch
 from config.getenv import GetEnv
 from module.module_utils import load_checkpoint_file, auto_model_detection
-from diffusers import UNet2DConditionModel
-from module.converter.conversion import convert_sdxl_to_diffusers
+from diffusers import UNet2DConditionModel, StableDiffusionXLPipeline, StableDiffusionPipeline
+from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 
 env = GetEnv()
 
@@ -71,33 +71,3 @@ def extract_model_components(ckpt) -> Tuple[Dict, Dict, Dict]:
             vae_tensors[key] = tensor.cpu()
     
     return unet_tensors, clip_tensors, vae_tensors
-
-
-def load_diffusers_from_sdxl(unet_model : UNet2DConditionModel, unet_tensors : Dict[str, torch.Tensor]):
-    model_state_dict = unet_model.state_dict()
-
-    converted_dict = convert_sdxl_to_diffusers(unet_tensors)
-    converted_state_dict = converted_dict['unet']
-
-    # with open(os.path.join(env.get_output_dir(), 'model_state_dict.txt'), 'w', encoding='utf-8') as f:
-    #     keys = '\n'.join(sorted(model_state_dict.keys()))
-    #     f.write(keys)
-    # with open(os.path.join(env.get_output_dir(), 'converted_state_dict.txt'), 'w', encoding='utf-8') as f:
-    #     keys = '\n'.join(sorted(converted_state_dict.keys()))
-    #     f.write(keys)
-
-    updated_state_dict = {}
-    for key, tensor in converted_state_dict.items():
-        if key in model_state_dict:
-            if tensor.shape == model_state_dict[key].shape:
-                updated_state_dict[key] = tensor
-            else:
-                print(f"Shape mismatch for {key} : expected {model_state_dict[key].shape}")
-        else:
-            print(f"key {key} not found in model state_dict")
-    
-    model_state_dict.update(updated_state_dict)
-    unet_model.load_state_dict(model_state_dict)
-    return unet_model
-
-
