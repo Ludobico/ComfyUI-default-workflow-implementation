@@ -7,6 +7,7 @@ from config.getenv import GetEnv
 from module.module_utils import load_tokenizer
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from diffusers import StableDiffusionXLPipeline
+from module.sampler.sampler_names import euler_ancestral, schedular_type
 
 env = GetEnv()
 
@@ -29,10 +30,12 @@ converted_enc1, converted_enc2 = convert_clip_from_ckpt_sd(enc1, clip_tensors, m
 # print(type(converted_unet))
 # print(type(converted_vae))
 # print(type(converted_enc1), type(converted_enc2))
-prompt = "A futuristic cityscape at night with neon lights and flying cars"
-negative_prompt = "blurry, low quality"
+prompt = "beautiful scenery nature glass bottle landscape, purple galaxy bottle"
+negative_prompt = "text, watermark"
 
 tokenizer1, tokenizer2 = load_tokenizer(model_type)
+
+schedular = schedular_type(euler_ancestral, 'normal')
 
 pipe = StableDiffusionXLPipeline(
     unet=converted_unet,
@@ -41,8 +44,10 @@ pipe = StableDiffusionXLPipeline(
     text_encoder_2=converted_enc2,
     tokenizer=tokenizer1,
     tokenizer_2=tokenizer2,
-    scheduler=None
+    scheduler=schedular
 )
+
+pipe.to(device)
 
 
 image = pipe(
