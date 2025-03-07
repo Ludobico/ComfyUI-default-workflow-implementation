@@ -53,7 +53,7 @@ pipe.to(device)
 image = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
-    num_inference_steps=50,
+    num_inference_steps=30,
     guidance_scale=7.5,
     height=1024,
     width=1024
