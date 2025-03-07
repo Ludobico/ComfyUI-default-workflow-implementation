@@ -4,12 +4,15 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 from diffusers.pipelines.stable_diffusion.convert_from_ckpt import convert_ldm_unet_checkpoint, convert_ldm_vae_checkpoint, convert_ldm_clip_checkpoint, convert_open_clip_checkpoint
-from typing import Dict, Union
+from typing import Dict, Literal
 from config.getenv import GetEnv
 from module.model_architecture import UNet, VAE, TextEncoder
 from module.model_state import  extract_model_components
 from utils import get_torch_device, highlight_print
 from transformers import CLIPTextModel, CLIPTextModelWithProjection
+from config.getenv import GetEnv
+
+env = GetEnv()
 
 def convert_unet_from_ckpt_sd(unet_config : Dict, ckpt_unet_sd : Dict):
     path = ""
@@ -20,12 +23,31 @@ def convert_vae_from_ckpt_sd(vae_config : Dict, ckpt_vae_sd : Dict ):
     converted_vae_checkpoint = convert_ldm_vae_checkpoint(ckpt_vae_sd, vae_config)
     return converted_vae_checkpoint
 
-def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict):
-    converted_clip_checkpoint = convert_ldm_clip_checkpoint(ckpt_clip_sd, text_encoder=clip_model)
-    return converted_clip_checkpoint
+def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
+    converted_clip1_checkpoint = convert_ldm_clip_checkpoint(ckpt_clip_sd, text_encoder=clip_model)
 
-def convert_clip2_from_ckpt_sd(clip_model : CLIPTextModelWithProjection, ckpt_clip_sd : Dict):
+    config_name = "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"
+    if model_type == 'sd15':
+        prefix = "cond_stage_model.model."
+    elif model_type == 'sdxl':
+        prefix = "conditioner.embedders.1.model."
+    cache_dir = env.get_clip_model_dir()
+    config_kwargs = {"projection_dim" : 1280, "cache_dir" : cache_dir}
+
+
+    converted_clip2_checkpoint = convert_open_clip_checkpoint(ckpt_clip_sd, config_name, prefix=prefix, has_projection=True, **config_kwargs)
+    return converted_clip1_checkpoint, converted_clip2_checkpoint
+
+def get_clip_to_update_state(clip_model , clip_model2, ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
     pass
+
+# def convert_clip2_from_ckpt_sd(clip_config , ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
+#     if model_type == 'sd15':
+#         prefix = "cond_stage_model.model."
+#     elif model_type == 'sdxl':
+#         prefix = "conditioner.embedders.1.model."
+#     converted_clip_checkpoint = convert_open_clip_checkpoint(ckpt_clip_sd, clip_config, prefix=prefix)
+#     return converted_clip_checkpoint
 
 if __name__ == "__main__":
     env = GetEnv()
@@ -37,11 +59,9 @@ if __name__ == "__main__":
     unet = UNet.sdxl()
     vae = VAE.sdxl_fp16()
     enc1 = TextEncoder.sdxl_enc1()
-    enc2 = TextEncoder.sdxl_enc2()
     device = get_torch_device()
-    ckpt_unet_tensors, clip_tensors, vae_tensors = extract_model_components(model_path)
+    ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path)
 
-    # converted_unet = convert_unet_from_ckpt_sd(unet.config, ckpt_unet_tensors)
-    # converted_vae = convert_vae_from_ckpt_sd(vae.config, vae_tensors)
-    # converted_enc1 = convert_clip_from_ckpt_sd(enc1, clip_tensors)
-    converted_enc2 = convert_clip_from_ckpt_sd(enc2, clip_tensors)
+    converted_unet = convert_unet_from_ckpt_sd(unet.config, ckpt_unet_tensors)
+    converted_vae = convert_vae_from_ckpt_sd(vae.config, vae_tensors)
+    converted_enc1, converted_enc2 = convert_clip_from_ckpt_sd(enc1, clip_tensors, model_type)

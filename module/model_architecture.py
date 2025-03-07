@@ -151,6 +151,9 @@ class TextEncoder:
     
     @staticmethod
     def sdxl_enc2():
+        """
+        the function `convert_open_clip_checkpoint` has only the `config_name` parameter. this architecture may not be used.
+        """
         config = CLIPTextConfig(
             attention_dropout=0.0,
             bos_token_id=0,

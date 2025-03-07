@@ -51,9 +51,16 @@ def is_vae_tensor(key, model_type : Literal['sd15', 'sdxl']):
         return key.startswith("first_stage_model.")
     return False
 
+def split_sdxl_clip_tensors(clip_tensors : Dict):
+    """
+    clip1 : CLIPTextModel clip-vit-large-patch14 variant.
+    clip2 : CLIPTextModelWithProjection laion/CLIP-ViT-bigG-14-laion2B-39B-b160k 
+    """
+    
+
 def extract_model_components(ckpt) -> Tuple[Dict, Dict, Dict]:
     """
-    Extracts UNet, CLIP, VAE weights from a checkpoint as a dictionary\n
+    Extracts UNet, CLIP, VAE weights and model type(sd15 or sdxl) from a checkpoint as a dictionary\n
     """
     unet_tensors = {}
     clip_tensors = {}
@@ -70,4 +77,4 @@ def extract_model_components(ckpt) -> Tuple[Dict, Dict, Dict]:
         elif is_vae_tensor(key, model_type):
             vae_tensors[key] = tensor.cpu()
     
-    return unet_tensors, clip_tensors, vae_tensors
+    return unet_tensors, clip_tensors, vae_tensors, model_type

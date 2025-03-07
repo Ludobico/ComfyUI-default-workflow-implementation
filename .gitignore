@@ -1,7 +1,9 @@
 models/checkpoints/*
 models/CLIP/*
+models/tokenizer/*
 !models/checkpoints/.gitkeep
-models/CLIP/.gitkeep
+!models/CLIP/.gitkeep
+!models/tokenizer/.gitkeep
 output/*
 !output/.gitkeep
 *.pyc

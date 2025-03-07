@@ -23,3 +23,7 @@ class GetEnv:
     def get_output_dir(self):
         output_dir = os.path.join(self.get_project_dir(), 'output')
         return output_dir
+    
+    def get_tokenizer_dir(self):
+        tokenizer_dir = os.path.join(self.get_project_dir(), 'tokenizer')
+        return tokenizer_dir
