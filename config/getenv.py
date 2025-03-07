@@ -25,5 +25,5 @@ class GetEnv:
         return output_dir
     
     def get_tokenizer_dir(self):
-        tokenizer_dir = os.path.join(self.get_project_dir(), 'tokenizer')
+        tokenizer_dir = os.path.join(self.get_model_dir(), 'tokenizer')
         return tokenizer_dir

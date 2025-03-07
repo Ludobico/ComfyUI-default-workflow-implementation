@@ -11,17 +11,20 @@ from module.model_state import  extract_model_components
 from utils import get_torch_device, highlight_print
 from transformers import CLIPTextModel, CLIPTextModelWithProjection
 from config.getenv import GetEnv
+from diffusers import UNet2DConditionModel, AutoencoderKL
 
 env = GetEnv()
 
-def convert_unet_from_ckpt_sd(unet_config : Dict, ckpt_unet_sd : Dict):
+def convert_unet_from_ckpt_sd(unet : UNet2DConditionModel, ckpt_unet_sd : Dict):
     path = ""
-    converted_unet_checkpoint = convert_ldm_unet_checkpoint(ckpt_unet_sd, unet_config, path)
-    return converted_unet_checkpoint
+    converted_unet_checkpoint = convert_ldm_unet_checkpoint(ckpt_unet_sd, unet.config, path)
+    unet.load_state_dict(converted_unet_checkpoint)
+    return unet
 
-def convert_vae_from_ckpt_sd(vae_config : Dict, ckpt_vae_sd : Dict ):
-    converted_vae_checkpoint = convert_ldm_vae_checkpoint(ckpt_vae_sd, vae_config)
-    return converted_vae_checkpoint
+def convert_vae_from_ckpt_sd(vae : AutoencoderKL, ckpt_vae_sd : Dict ):
+    converted_vae_checkpoint = convert_ldm_vae_checkpoint(ckpt_vae_sd, vae.config)
+    vae.load_state_dict(converted_vae_checkpoint)
+    return vae
 
 def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
     converted_clip1_checkpoint = convert_ldm_clip_checkpoint(ckpt_clip_sd, text_encoder=clip_model)

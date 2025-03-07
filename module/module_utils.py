@@ -5,6 +5,7 @@ from utils import get_cpu_device, get_torch_device, highlight_print
 import torch
 from config.getenv import GetEnv
 from diffusers import UNet2DConditionModel
+from transformers import CLIPTokenizer
 
 env = GetEnv()
 
@@ -87,3 +88,15 @@ def compare_unet_models(model1: UNet2DConditionModel, model2: UNet2DConditionMod
 
     print("Both models are identical")
     return True
+
+def load_tokenizer(model_type : Literal['sd15', 'sdxl']):
+    tok1_name = "openai/clip-vit-large-patch14"
+    tok2_name = "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"
+    cache_dir = env.get_tokenizer_dir()
+    if model_type == 'sd15':
+        tokenizer = CLIPTokenizer.from_pretrained(tok1_name, cache_dir=cache_dir)
+        return tokenizer
+    elif model_type == 'sdxl':
+        tokenizer1 = CLIPTokenizer.from_pretrained(tok1_name, cache_dir=cache_dir)
+        tokenizer2 = CLIPTokenizer.from_pretrained(tok2_name, cache_dir=cache_dir)
+        return tokenizer1, tokenizer2
