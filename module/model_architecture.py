@@ -1,6 +1,8 @@
-from diffusers import UNet2DConditionModel
+from diffusers import UNet2DConditionModel, AutoencoderKL
+from transformers import CLIPTextModel, CLIPTextConfig, CLIPTextModelWithProjection
+import torch
 
-class Unet:
+class UNet:
     @staticmethod
     def sdxl():
         unet = UNet2DConditionModel(
@@ -53,3 +55,120 @@ class Unet:
             use_linear_projection=True
         )
         return unet
+    
+
+class VAE:
+    @staticmethod
+    def sdxl_fp16():
+        """
+        madebyollin/sdxl-vae-fp16-fix
+        """
+        vae = AutoencoderKL(
+            act_fn="silu",
+            block_out_channels=[128,256,512,512],
+            down_block_types=[
+                "DownEncoderBlock2D",
+                "DownEncoderBlock2D",
+                "DownEncoderBlock2D",
+                "DownEncoderBlock2D"
+            ],
+            force_upcast=False,
+            in_channels=3,
+            latent_channels=4,
+            latents_mean=None,
+            latents_std=None,
+            layers_per_block=2,
+            mid_block_add_attention=True,
+            norm_num_groups=32,
+            out_channels=3,
+            sample_size=512,
+            scaling_factor=0.13025,
+            shift_factor=None,
+            up_block_types=[
+            "UpDecoderBlock2D",
+            "UpDecoderBlock2D",
+            "UpDecoderBlock2D",
+            "UpDecoderBlock2D"
+            ],
+            use_post_quant_conv=True,
+            use_quant_conv=True
+        )
+        return vae
+    @staticmethod
+    def sdxl():
+        """
+        stabilityai/sdxl-vae
+        """
+        vae = AutoencoderKL(
+            act_fn="silu",
+            block_out_channels=[128,256,512,512],
+            down_block_types=[
+            "DownEncoderBlock2D",
+            "DownEncoderBlock2D",
+            "DownEncoderBlock2D",
+            "DownEncoderBlock2D"
+            ],
+            in_channels=3,
+            latent_channels=4,
+            layers_per_block=2,
+            norm_num_groups=32,
+            out_channels=3,
+            sample_size=1024,
+            scaling_factor=0.13025,
+            up_block_types=[
+            "UpDecoderBlock2D",
+            "UpDecoderBlock2D",
+            "UpDecoderBlock2D",
+            "UpDecoderBlock2D"
+            ]
+        )
+        return vae
+    
+class TextEncoder:
+    @staticmethod
+    def sdxl_enc1():
+        config = CLIPTextConfig(
+            attention_dropout=0.0,
+            bos_token_id=0,
+            eos_token_id=2,
+            dropout=0.0,
+            hidden_act="quick_gelu",
+            hidden_size=768,
+            initializer_factor=1.0,
+            initializer_range=0.02,
+            intermediate_size=3072,
+            layer_norm_eps=1e-05,
+            max_position_embeddings=77,
+            num_attention_heads=12,
+            num_hidden_layers=12,
+            pad_token_id=1,
+            projection_dim=768,
+            torch_dtype = torch.float16,
+            vocab_size=49408
+        )
+        enc1 = CLIPTextModel(config=config)
+        return enc1
+    
+    @staticmethod
+    def sdxl_enc2():
+        config = CLIPTextConfig(
+            attention_dropout=0.0,
+            bos_token_id=0,
+            dropout = 0.0,
+            eos_token_id= 2,
+            hidden_act="gelu",
+            hidden_size=1280,
+            initializer_factor=1.0,
+            initializer_range=0.02,
+            intermediate_size=5120,
+            layer_norm_eps=1e-05,
+            max_position_embeddings=77,
+            num_attention_heads=20,
+            num_hidden_layers=32,
+            pad_token_id=1,
+            projection_dim=1280,
+            torch_dtype=torch.float16,
+            vocab_size=49408
+        )
+        enc2 = CLIPTextModelWithProjection(config=config)
+        return enc2
