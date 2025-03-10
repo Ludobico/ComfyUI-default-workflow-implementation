@@ -15,7 +15,7 @@ from module.model_architecture import UNet, VAE, TextEncoder
 from utils import highlight_print
 
 
-ckpt = r"E:\st002\repo\generative\image\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\models\checkpoints\[SDXL]sd_xl_base_1.0.safetensors"
+ckpt = r""
 env = GetEnv()
 cache_dir = os.path.join(env.get_project_dir(), 'temp')
 
