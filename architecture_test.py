@@ -13,7 +13,7 @@ from module.debugging import pipe_from_diffusers
 env = GetEnv()
 torch.cuda.empty_cache()
 
-model_path = r"E:\st002\repo\generative\image\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\models\checkpoints\[SDXL]sd_xl_base_1.0.safetensors"
+model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\models\checkpoints\[SDXL]sd_xl_base_1.0.safetensors"
 
 model_path2 = r"E:\st002\repo\generative\image\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
 
@@ -23,7 +23,7 @@ vae = VAE.sdxl()
 enc1 = TextEncoder.sdxl_enc1()
 device = get_torch_device()
 limit_vram_usage(device=device)
-ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path2)
+ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path)
 
 converted_unet = convert_unet_from_ckpt_sd(unet, ckpt_unet_tensors)
 converted_vae = convert_vae_from_ckpt_sd(vae, vae_tensors)
@@ -51,11 +51,10 @@ pipe = StableDiffusionXLPipeline(
     tokenizer_2=tokenizer2,
     scheduler=schedular
 )
-
+pdb.set_trace()
 pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
-
 
 image = pipe(
     prompt=prompt,

@@ -59,36 +59,6 @@ class UNet:
 
 class VAE:
     @staticmethod
-    def sdxl_fp16():
-        """
-        madebyollin/sdxl-vae-fp16-fix
-        """
-        vae = AutoencoderKL(
-            act_fn="silu",
-            block_out_channels=[128,256,512,512],
-            down_block_types=[
-                "DownEncoderBlock2D",
-                "DownEncoderBlock2D",
-                "DownEncoderBlock2D",
-                "DownEncoderBlock2D"
-            ],
-            in_channels=3,
-            latent_channels=4,
-            layers_per_block=2,
-            norm_num_groups=32,
-            out_channels=3,
-            sample_size=512,
-            scaling_factor=0.13025,
-            up_block_types=[
-            "UpDecoderBlock2D",
-            "UpDecoderBlock2D",
-            "UpDecoderBlock2D",
-            "UpDecoderBlock2D"
-            ],
-            force_upcast=False
-        )
-        return vae
-    @staticmethod
     def sdxl():
         """
         stabilityai/sdxl-vae
@@ -144,10 +114,7 @@ class TextEncoder:
         return enc1
     
     @staticmethod
-    def sdxl_enc2():
-        """
-        the function `convert_open_clip_checkpoint` has only the `config_name` parameter. this architecture may not be used.
-        """
+    def sdxl_enc2_config():
         config = CLIPTextConfig(
             attention_dropout=0.0,
             bos_token_id=0,
@@ -167,5 +134,4 @@ class TextEncoder:
             torch_dtype=torch.float16,
             vocab_size=49408
         )
-        enc2 = CLIPTextModelWithProjection(config=config)
-        return enc2
+        return config
