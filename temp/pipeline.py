@@ -14,7 +14,6 @@ def pipeline_for_test(ckpt):
 
     pipe.to(device)
     pipe.enable_model_cpu_offload()
-    pipe.enable_vae_slicing()
     pipe.enable_attention_slicing()
 
     pipe.unet = torch.compile(pipe.unet, mode="reduce-overhead", fullgraph=True)
