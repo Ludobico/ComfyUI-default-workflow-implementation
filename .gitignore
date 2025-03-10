@@ -4,6 +4,9 @@ models/tokenizer/*
 !models/checkpoints/.gitkeep
 !models/CLIP/.gitkeep
 !models/tokenizer/.gitkeep
+!models/tokenizer/sdxl_tokenizer
+!models/tokenizer/sdxl_tokenizer_2
+!models/tokenizer/sd15_tokenizer
 output/*
 !output/.gitkeep
 *.pyc

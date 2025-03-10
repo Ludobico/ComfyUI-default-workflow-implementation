@@ -72,26 +72,20 @@ class VAE:
                 "DownEncoderBlock2D",
                 "DownEncoderBlock2D"
             ],
-            force_upcast=False,
             in_channels=3,
             latent_channels=4,
-            latents_mean=None,
-            latents_std=None,
             layers_per_block=2,
-            mid_block_add_attention=True,
             norm_num_groups=32,
             out_channels=3,
             sample_size=512,
             scaling_factor=0.13025,
-            shift_factor=None,
             up_block_types=[
             "UpDecoderBlock2D",
             "UpDecoderBlock2D",
             "UpDecoderBlock2D",
             "UpDecoderBlock2D"
             ],
-            use_post_quant_conv=True,
-            use_quant_conv=True
+            force_upcast=False
         )
         return vae
     @staticmethod

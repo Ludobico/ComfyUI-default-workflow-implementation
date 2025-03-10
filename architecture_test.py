@@ -1,42 +1,46 @@
-import os
+import os, pdb
 from module.model_architecture import UNet, VAE, TextEncoder
 import torch
 from module.model_state import  extract_model_components
 from utils import get_torch_device, highlight_print
 from config.getenv import GetEnv
-from module.module_utils import load_tokenizer, limit_vram_usage
+from module.module_utils import load_tokenizer, limit_vram_usage, save_config_files
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from diffusers import StableDiffusionXLPipeline
-from module.sampler.sampler_names import euler_ancestral, schedular_type
+from module.sampler.sampler_names import euler_ancestral, scheduler_type
+from module.debugging import pipe_from_diffusers
 
 env = GetEnv()
+torch.cuda.empty_cache()
 
+model_path = r"E:\st002\repo\generative\image\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\models\checkpoints\[SDXL]sd_xl_base_1.0.safetensors"
 
-model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
+model_path2 = r"E:\st002\repo\generative\image\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
 
 
 unet = UNet.sdxl()
-vae = VAE.sdxl_fp16()
+vae = VAE.sdxl()
 enc1 = TextEncoder.sdxl_enc1()
 device = get_torch_device()
 limit_vram_usage(device=device)
-ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path)
+ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path2)
 
 converted_unet = convert_unet_from_ckpt_sd(unet, ckpt_unet_tensors)
 converted_vae = convert_vae_from_ckpt_sd(vae, vae_tensors)
 converted_enc1, converted_enc2 = convert_clip_from_ckpt_sd(enc1, clip_tensors, model_type)
 
-
-
-# print(type(converted_unet))
-# print(type(converted_vae))
-# print(type(converted_enc1), type(converted_enc2))
 prompt = "beautiful scenery nature glass bottle landscape, purple galaxy bottle"
 negative_prompt = "text, watermark"
+seed = 2025
+device = get_torch_device()
+limit_vram_usage(device=device)
+generator = torch.Generator(device=device).manual_seed(seed)
+
+highlight_print(model_type, 'blue')
 
 tokenizer1, tokenizer2 = load_tokenizer(model_type)
 
-schedular = schedular_type(euler_ancestral, 'normal')
+schedular = scheduler_type(euler_ancestral, 'normal')
 
 pipe = StableDiffusionXLPipeline(
     unet=converted_unet,
@@ -48,19 +52,23 @@ pipe = StableDiffusionXLPipeline(
     scheduler=schedular
 )
 
-pipe.to(device)
+pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
-pipe.enable_vae_slicing()
 pipe.enable_attention_slicing()
-
-pipe.unet = torch.compile(pipe.unet, mode="reduce-overhead", fullgraph=True)
 
 
 image = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
-    num_inference_steps=30,
+    num_inference_steps=25,
     guidance_scale=7.5,
     height=1024,
-    width=1024
+    width=1024,
+    generator=generator
 )
+
+output = image.images[0]
+save_path = env.get_output_dir()
+
+output.save(os.path.join(save_path, 'outputP.png'))
+print("DONE")

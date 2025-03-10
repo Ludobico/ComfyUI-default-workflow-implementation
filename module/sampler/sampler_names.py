@@ -11,7 +11,7 @@ lms=LMSDiscreteScheduler(**CONFIG.lms)
 dpmpp_2m=DPMSolverMultistepScheduler(**CONFIG.dpmpp_2m)
 dpmpp_2m_sde=DPMSolverMultistepScheduler(**CONFIG.dpmpp_2m, algorithm_type="sde-dpmsolver++")
 
-def schedular_type(sampler_name  ,noise : Literal['normal', 'karras', 'sgm_uniform', 'simple', 'exponential', 'beta']):
+def scheduler_type(sampler_name  ,noise : Literal['normal', 'karras', 'sgm_uniform', 'simple', 'exponential', 'beta']):
     config_with_noise = dict(sampler_name.config)
     if noise == 'normal':
         return sampler_name
