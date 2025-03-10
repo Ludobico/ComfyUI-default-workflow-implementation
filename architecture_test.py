@@ -4,7 +4,7 @@ import torch
 from module.model_state import  extract_model_components
 from utils import get_torch_device, highlight_print
 from config.getenv import GetEnv
-from module.module_utils import load_tokenizer
+from module.module_utils import load_tokenizer, limit_vram_usage
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from diffusers import StableDiffusionXLPipeline
 from module.sampler.sampler_names import euler_ancestral, schedular_type
@@ -19,6 +19,7 @@ unet = UNet.sdxl()
 vae = VAE.sdxl_fp16()
 enc1 = TextEncoder.sdxl_enc1()
 device = get_torch_device()
+limit_vram_usage(device=device)
 ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path)
 
 converted_unet = convert_unet_from_ckpt_sd(unet, ckpt_unet_tensors)
@@ -48,6 +49,11 @@ pipe = StableDiffusionXLPipeline(
 )
 
 pipe.to(device)
+pipe.enable_model_cpu_offload()
+pipe.enable_vae_slicing()
+pipe.enable_attention_slicing()
+
+pipe.unet = torch.compile(pipe.unet, mode="reduce-overhead", fullgraph=True)
 
 
 image = pipe(

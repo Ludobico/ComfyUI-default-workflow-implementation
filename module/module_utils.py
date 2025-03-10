@@ -100,3 +100,6 @@ def load_tokenizer(model_type : Literal['sd15', 'sdxl']):
         tokenizer1 = CLIPTokenizer.from_pretrained(tok1_name, cache_dir=cache_dir)
         tokenizer2 = CLIPTokenizer.from_pretrained(tok2_name, cache_dir=cache_dir)
         return tokenizer1, tokenizer2
+    
+def limit_vram_usage(device, max_vram_fraction = 0.5):
+    torch.cuda.set_per_process_memory_fraction(max_vram_fraction, device=device)

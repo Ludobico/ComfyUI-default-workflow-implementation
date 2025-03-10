@@ -41,6 +41,6 @@ def schedular_type(sampler_name  ,noise : Literal['normal', 'karras', 'sgm_unifo
     elif isinstance(sampler_name, LMSDiscreteScheduler):
         return LMSDiscreteScheduler(**config_with_noise)
     elif isinstance(sampler_name, DPMSolverMultistepScheduler):
-        return DPMSolverMultistepScheduler(**config_with_noise, algorithm_type="sde-dpmsolver++")
+        return DPMSolverMultistepScheduler(**config_with_noise)
     else:
         raise ValueError(f"Unsupported sampler : {sampler_name}")
