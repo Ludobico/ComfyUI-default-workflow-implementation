@@ -6,6 +6,7 @@ import torch
 from config.getenv import GetEnv
 from diffusers import UNet2DConditionModel
 from transformers import CLIPTokenizer
+import json
 
 env = GetEnv()
 
@@ -90,16 +91,64 @@ def compare_unet_models(model1: UNet2DConditionModel, model2: UNet2DConditionMod
     return True
 
 def load_tokenizer(model_type : Literal['sd15', 'sdxl']):
-    tok1_name = "openai/clip-vit-large-patch14"
-    tok2_name = "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"
+    sd_tok1_dir = os.path.join(env.get_tokenizer_dir(), 'sd15_tokenizer')
+    xl_tok1_dir = os.path.join(env.get_tokenizer_dir(), 'sdxl_tokenizer')
+    xl_tok2_dir = os.path.join(env.get_tokenizer_dir(), 'sdxl_tokenizer_2')
     cache_dir = env.get_tokenizer_dir()
     if model_type == 'sd15':
-        tokenizer = CLIPTokenizer.from_pretrained(tok1_name, cache_dir=cache_dir)
-        return tokenizer
+        tokenizer = CLIPTokenizer.from_pretrained(sd_tok1_dir, cache_dir=cache_dir)
+        return (tokenizer, None)
     elif model_type == 'sdxl':
-        tokenizer1 = CLIPTokenizer.from_pretrained(tok1_name, cache_dir=cache_dir)
-        tokenizer2 = CLIPTokenizer.from_pretrained(tok2_name, cache_dir=cache_dir)
-        return tokenizer1, tokenizer2
+        tokenizer1 = CLIPTokenizer.from_pretrained(xl_tok1_dir, cache_dir=cache_dir)
+        tokenizer2 = CLIPTokenizer.from_pretrained(xl_tok2_dir, cache_dir=cache_dir)
+        return (tokenizer1, tokenizer2)
     
 def limit_vram_usage(device, max_vram_fraction = 0.5):
+    if isinstance(device, str):
+        if device == 'cuda':
+            device = "cuda:0"
     torch.cuda.set_per_process_memory_fraction(max_vram_fraction, device=device)
+
+def save_config_files(pipe, unet : bool = True, vae : bool = True, text_encoder : bool = True, tokenizer : bool = True ,suffix : Optional[str] = None):
+
+    output_dir = env.get_output_dir()
+
+    if unet:
+        unet_config = pipe.unet.config
+        save_unet_path = os.path.join(output_dir, "unet_config.json" if suffix is None else f"unet_config_{suffix}.json")
+        with open(save_unet_path, 'w', encoding='utf-8') as f:
+            json.dump(unet_config, f, indent=4)
+    
+    if vae:
+        vae_config = pipe.vae.config
+        save_vae_path = os.path.join(output_dir, "vae_config.json" if suffix is None else f"vae_config_{suffix}.json")
+        with open(save_vae_path, 'w', encoding='utf-8') as f:
+            json.dump(vae_config, f, indent=4)
+
+    if text_encoder:
+        text_encoder_config = pipe.text_encoder.config
+        save_encoder_path = os.path.join(output_dir, "encoder_config.json" if suffix is None else f"encoder_config_{suffix}.json")
+        with open(save_encoder_path, "w", encoding='utf-8') as f:
+            json.dump(text_encoder_config, f, indent=4)
+        
+        if hasattr(pipe, 'text_encoder_2'):
+            text_encoder2_config = pipe.text_encoder_2.config
+            save_encoder2_path = os.path.join(output_dir, 'encoder2_config.json' if suffix is None else f"encoder2_config+{suffix}.json")
+            with open(save_encoder2_path, 'w', encoding='utf-8') as f:
+                json.dump(text_encoder2_config, f, indent=4)
+    
+    if tokenizer:
+        tok1_config = pipe.tokenizer.config
+        save_tok1_path = os.path.join(output_dir, 'tokenizer1_config.json' if suffix is None else f"tokenizer1_config_{suffix}.json")
+        with open(save_tok1_path, 'w', encoding='utf-8') as f:
+            json.dump(tok1_config, f, indent=4)
+        
+        if hasattr(pipe, 'tokenizer_2') and pipe.tokenizer_2:
+            tok2_config = pipe.tokenizer_2.config
+            save_tok2_path = os.path.join(output_dir, 'tokenizer2_config.json' if suffix is None else f"tokenizer2_config_{suffix}.json")
+            with open(save_tok2_path, 'w', encoding='utf-8') as f:
+                json.dump(tok2_config, f, indent=4)
+
+
+    
+    highlight_print("DONE", 'green')

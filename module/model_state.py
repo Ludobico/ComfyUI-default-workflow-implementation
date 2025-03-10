@@ -71,10 +71,10 @@ def extract_model_components(ckpt) -> Tuple[Dict, Dict, Dict]:
 
     for key, tensor in tensors.items():
         if is_unet_tensor(key, model_type):
-            unet_tensors[key] = tensor.cpu()
+            unet_tensors[key] = tensor
         elif is_clip_tensor(key, model_type):
-            clip_tensors[key] = tensor.cpu()
+            clip_tensors[key] = tensor
         elif is_vae_tensor(key, model_type):
-            vae_tensors[key] = tensor.cpu()
+            vae_tensors[key] = tensor
     
     return unet_tensors, clip_tensors, vae_tensors, model_type

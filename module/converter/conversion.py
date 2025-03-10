@@ -18,12 +18,14 @@ env = GetEnv()
 def convert_unet_from_ckpt_sd(unet : UNet2DConditionModel, ckpt_unet_sd : Dict):
     path = ""
     converted_unet_checkpoint = convert_ldm_unet_checkpoint(ckpt_unet_sd, unet.config, path)
-    unet.load_state_dict(converted_unet_checkpoint)
+
+    unet.load_state_dict(converted_unet_checkpoint, strict=False)
     return unet
 
 def convert_vae_from_ckpt_sd(vae : AutoencoderKL, ckpt_vae_sd : Dict ):
     converted_vae_checkpoint = convert_ldm_vae_checkpoint(ckpt_vae_sd, vae.config)
-    vae.load_state_dict(converted_vae_checkpoint)
+
+    vae.load_state_dict(converted_vae_checkpoint, strict=False)
     return vae
 
 def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
