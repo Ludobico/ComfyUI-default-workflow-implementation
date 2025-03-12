@@ -56,6 +56,29 @@ class UNet:
         )
         return unet
     
+    @staticmethod
+    def sd15():
+        unet = UNet2DConditionModel(
+            act_fn="silu",
+            attention_head_dim=8,
+            block_out_channels=[320, 640, 1280, 1280],
+            center_input_sample=False,
+            cross_attention_dim=768,
+            down_block_types=["CrossAttnDownBlock2D", "CrossAttnDownBlock2D", "CrossAttnDownBlock2D", "DownBlock2D"],
+            downsample_padding=1,
+            flip_sin_to_cos=True,
+            freq_shift=0,
+            in_channels=4,
+            layers_per_block=2,
+            mid_block_scale_factor=1,
+            norm_eps=1e-05,
+            norm_num_groups=32,
+            out_channels=4,
+            sample_size=64,
+            up_block_types=["UpBlock2D","CrossAttnUpBlock2D","CrossAttnUpBlock2D","CrossAttnUpBlock2D"]
+        )
+        return unet
+    
 
 class VAE:
     @staticmethod
@@ -66,11 +89,7 @@ class VAE:
         vae = AutoencoderKL(
             act_fn="silu",
             block_out_channels=[128,256,512,512],
-            down_block_types=[
-            "DownEncoderBlock2D",
-            "DownEncoderBlock2D",
-            "DownEncoderBlock2D",
-            "DownEncoderBlock2D"
+            down_block_types=["DownEncoderBlock2D","DownEncoderBlock2D","DownEncoderBlock2D","DownEncoderBlock2D"
             ],
             in_channels=3,
             latent_channels=4,
@@ -79,12 +98,23 @@ class VAE:
             out_channels=3,
             sample_size=1024,
             scaling_factor=0.13025,
-            up_block_types=[
-            "UpDecoderBlock2D",
-            "UpDecoderBlock2D",
-            "UpDecoderBlock2D",
-            "UpDecoderBlock2D"
+            up_block_types=["UpDecoderBlock2D","UpDecoderBlock2D","UpDecoderBlock2D","UpDecoderBlock2D"
             ]
+        )
+        return vae
+    @staticmethod
+    def sd15():
+        vae = AutoencoderKL(
+            act_fn="silu",
+            block_out_channels=[128,256,512,512],
+            down_block_types=["DownEncoderBlock2D","DownEncoderBlock2D","DownEncoderBlock2D","DownEncoderBlock2D"],
+            in_channels=3,
+            latent_channels=4,
+            layers_per_block=2,
+            norm_num_groups=32,
+            out_channels=3,
+            sample_size=512,
+            up_block_types=["UpDecoderBlock2D","UpDecoderBlock2D","UpDecoderBlock2D","UpDecoderBlock2D"]
         )
         return vae
     
@@ -135,3 +165,27 @@ class TextEncoder:
             vocab_size=49408
         )
         return config
+    
+    @staticmethod
+    def sd15_enc():
+        config = CLIPTextConfig(
+            attention_dropout=0.0,
+            bos_token_id=0,
+            dropout = 0.0,
+            eos_token_id=2,
+            hidden_act="quick_gelu",
+            hidden_size=768,
+            initializer_factor=1.0,
+            initializer_range=0.02,
+            intermediate_size=3072,
+            layer_norm_eps=1e-05,
+            max_position_embeddings=77,
+            num_attention_heads=12,
+            num_hidden_layers=12,
+            pad_token_id=1,
+            projection_dim=768,
+            torch_dtype=torch.float32,
+            vocab_size=49408
+        )
+        enc = CLIPTextModel(config=config)
+        return enc
