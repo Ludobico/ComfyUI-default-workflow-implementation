@@ -35,7 +35,6 @@ def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict, m
     # converted_clip1_checkpoint = convert_ldm_clip_checkpoint(ckpt_clip_sd, text_encoder=clip_model)
     converted_clip1_checkpoint = convert_text_encoder(ckpt_clip_sd, text_encoder=clip_model)
 
-    config_name = "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k"
     if model_type == 'sd15':
         prefix = "cond_stage_model.model."
         return (converted_clip1_checkpoint, None)
@@ -51,30 +50,3 @@ def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict, m
         converted_clip2_checkpoint = convert_text_encoder_2(ckpt_clip_sd, config, prefix=prefix, has_projection=True, local_files_only = True)
         return (converted_clip1_checkpoint, converted_clip2_checkpoint)
 
-def get_clip_to_update_state(clip_model , clip_model2, ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
-    pass
-
-# def convert_clip2_from_ckpt_sd(clip_config , ckpt_clip_sd : Dict, model_type : Literal['sd15', 'sdxl']):
-#     if model_type == 'sd15':
-#         prefix = "cond_stage_model.model."
-#     elif model_type == 'sdxl':
-#         prefix = "conditioner.embedders.1.model."
-#     converted_clip_checkpoint = convert_open_clip_checkpoint(ckpt_clip_sd, clip_config, prefix=prefix)
-#     return converted_clip_checkpoint
-
-if __name__ == "__main__":
-    env = GetEnv()
-
-
-    model_path = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
-
-
-    unet = UNet.sdxl()
-    vae = VAE.sdxl_fp16()
-    enc1 = TextEncoder.sdxl_enc1()
-    device = get_torch_device()
-    ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path)
-
-    converted_unet = convert_unet_from_ckpt_sd(unet.config, ckpt_unet_tensors)
-    converted_vae = convert_vae_from_ckpt_sd(vae.config, vae_tensors)
-    converted_enc1, converted_enc2 = convert_clip_from_ckpt_sd(enc1, clip_tensors, model_type)
