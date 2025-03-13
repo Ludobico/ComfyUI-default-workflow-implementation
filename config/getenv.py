@@ -12,6 +12,10 @@ class GetEnv:
         model_dir = os.path.join(self.curdir, '..' ,'models')
         return model_dir
     
+    def get_ckpt_dir(self):
+        ckpt_dir = os.path.join(self.get_model_dir(), 'checkpoints')
+        return ckpt_dir
+    
     def get_clip_model_dir(self):
         clip_model_dir = os.path.join(self.get_model_dir(), 'CLIP')
         return clip_model_dir

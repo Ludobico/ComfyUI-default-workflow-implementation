@@ -1,7 +1,7 @@
 import os
 from typing import Literal, Optional, Dict
 from safetensors.torch import load_file
-from utils import get_cpu_device, get_torch_device, highlight_print
+from utils import get_cpu_device, get_torch_device, highlight_print, get_memory_info
 import torch
 from config.getenv import GetEnv
 from diffusers import UNet2DConditionModel
@@ -104,6 +104,11 @@ def load_tokenizer(model_type : Literal['sd15', 'sdxl']):
         return (tokenizer1, tokenizer2)
     
 def limit_vram_usage(device, max_vram_fraction = 0.5):
+    
+    vram_info, _ = get_memory_info(verbose=False)
+    # 8gb vram
+    if vram_info < float(8000):
+        max_vram_fraction = 0.9
     if isinstance(device, str):
         if device == 'cuda':
             device = "cuda:0"

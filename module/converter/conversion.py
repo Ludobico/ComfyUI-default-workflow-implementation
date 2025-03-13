@@ -3,13 +3,10 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from diffusers.pipelines.stable_diffusion.convert_from_ckpt import convert_ldm_unet_checkpoint, convert_ldm_vae_checkpoint, convert_ldm_clip_checkpoint, convert_open_clip_checkpoint
 from module.converter.sd_to_diffuser import convert_unet, convert_vae, convert_text_encoder, convert_text_encoder_2
 from typing import Dict, Literal
 from config.getenv import GetEnv
 from module.model_architecture import UNet, VAE, TextEncoder
-from module.model_state import  extract_model_components
-from utils import get_torch_device, highlight_print
 from transformers import CLIPTextModel, CLIPTextModelWithProjection
 from config.getenv import GetEnv
 from diffusers import UNet2DConditionModel, AutoencoderKL

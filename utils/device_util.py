@@ -17,7 +17,7 @@ def get_cpu_device():
     device = 'cpu'
     return device
 
-def get_memory_info(device_type : Literal['auto', 'cuda', 'cpu'] = 'auto') -> Tuple[float, str]:
+def get_memory_info(device_type : Literal['auto', 'cuda', 'cpu'] = 'auto', verbose : bool = True) -> Tuple[float, str]:
     """
     Return total VRAM (if CUDA is available) or total RAM (if using CPU)
 
@@ -51,8 +51,8 @@ def get_memory_info(device_type : Literal['auto', 'cuda', 'cpu'] = 'auto') -> Tu
         total_memory = psutil.virtual_memory().total / (1024**2)
         
     
-
-    highlight_print(f"Total {memory_type} : {total_memory:.0f} MB", color='green')
+    if verbose:
+        highlight_print(f"Total {memory_type} : {total_memory:.0f} MB", color='green')
 
     return total_memory, memory_type
     
