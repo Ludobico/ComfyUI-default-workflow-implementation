@@ -23,7 +23,7 @@ def highlight_print(
     elif color == 'red':
         print(RED + target + RESET, **kwargs)
     elif color == 'green':
-        print(GREEN + target + RESET, **kwargs)
+        print(GREEN + str(target) + RESET, **kwargs)
     elif color == 'blue':
         print(BLUE + target + RESET, **kwargs)
     elif color == 'yellow':
