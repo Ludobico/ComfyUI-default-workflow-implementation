@@ -10,6 +10,7 @@ from diffusers import StableDiffusionXLPipeline
 from module.sampler.sampler_names import euler_ancestral, scheduler_type
 from module.debugging import pipe_from_diffusers
 from module.encoder import PromptEncoder
+from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 
 env = GetEnv()
 torch.cuda.empty_cache()
@@ -36,6 +37,7 @@ negative_prompt = "text, watermark"
 
 seed = 42
 device = get_torch_device()
+dtype = torch.float16
 limit_vram_usage(device=device)
 generator = torch.Generator(device=device).manual_seed(seed)
 
@@ -46,7 +48,16 @@ pos_prompt_embeds, pos_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=
 neg_prompt_embeds, neg_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=negative_prompt, clip=clip)
 
 
-schedular = scheduler_type(euler_ancestral, 'normal')
+scheduler = scheduler_type(euler_ancestral, 'normal')
+
+timesteps, num_inference_steps = retrieve_timesteps(scheduler, num_inference_steps=25, device=device)
+
+num_channels_latents = unet.config.in_channels
+vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
+# 1은 생성할 이미지 개수
+batch_size = pos_prompt_embeds.shape[0] * 1
+
+latents = prepare_latents(batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, None, generator, vae_scale_factor)
 
 pipe = StableDiffusionXLPipeline(
     unet=converted_unet,
@@ -55,11 +66,12 @@ pipe = StableDiffusionXLPipeline(
     text_encoder_2=clip[1],
     tokenizer=tokenizer1,
     tokenizer_2=tokenizer2,
-    scheduler=schedular
+    scheduler=scheduler
 )
 pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
+
 
 # 일반 문자열 프롬프트
 # image = pipe(
@@ -72,17 +84,15 @@ pipe.enable_attention_slicing()
 #     generator=generator
 # )
 
-# prompt to encode
+# implementation
 image = pipe(
     prompt_embeds=pos_prompt_embeds,
     pooled_prompt_embeds=pos_pooled_prompt_embeds,
     negative_prompt_embeds=neg_prompt_embeds,
     negative_pooled_prompt_embeds=neg_pooled_prompt_embeds,
-    num_inference_steps=25,
+    num_inference_steps=num_inference_steps,
     guidance_scale=7.5,
-    height=1024,
-    width=768,
-    generator=generator
+    latents=latents
 )
 
 output = image.images[0]
