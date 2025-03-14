@@ -64,12 +64,6 @@ def prepare_latents(batch_size, num_channels_latents, height, width, dtype, devi
         int(width) // vae_scale_factor,
     )
 
-    if isinstance(generator, list) and len(generator) != batch_size:
-        raise ValueError(
-            f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-            f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-        )
-
     latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
 
     # scale the initial noise by the standard deviation required by the scheduler

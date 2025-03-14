@@ -1,4 +1,5 @@
 from typing import Union, Tuple, List, Optional
+from utils import highlight_print
 import torch
 def randn_tensor(
     shape: Union[Tuple, List],
@@ -35,8 +36,8 @@ def randn_tensor(
             torch.randn(shape, generator=generator[i], device=rand_device, dtype=dtype, layout=layout)
             for i in range(batch_size)
         ]
-        latents = torch.cat(latents, dim=0).to(device)
+        latents = torch.cat(latents, dim=0)
     else:
-        latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype, layout=layout).to(device)
+        latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype, layout=layout)
 
     return latents
