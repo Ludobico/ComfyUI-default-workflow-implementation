@@ -9,7 +9,7 @@ from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_f
 from diffusers import StableDiffusionXLPipeline
 from module.sampler.sampler_names import euler_ancestral, scheduler_type
 from module.debugging import pipe_from_diffusers
-from module.encoder import sdxl_text_conditioning
+from module.encoder import PromptEncoder
 
 env = GetEnv()
 torch.cuda.empty_cache()
@@ -34,15 +34,17 @@ clip = (converted_enc1, converted_enc2)
 prompt = "beautiful scenery nature glass bottle landscape, purple galaxy bottle"
 negative_prompt = "text, watermark"
 
-emb_prompt = sdxl_text_conditioning(prompt, clip, 'cpu')
-highlight_print(emb_prompt, 'green')
-pdb.set_trace()
 seed = 42
 device = get_torch_device()
 limit_vram_usage(device=device)
 generator = torch.Generator(device=device).manual_seed(seed)
 
 tokenizer1, tokenizer2 = load_tokenizer(model_type)
+
+enc = PromptEncoder()
+pos_prompt_embeds, pos_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=prompt, clip=clip)
+neg_prompt_embeds, neg_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=negative_prompt, clip=clip)
+
 
 schedular = scheduler_type(euler_ancestral, 'normal')
 
@@ -60,9 +62,22 @@ pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
 
 # 일반 문자열 프롬프트
+# image = pipe(
+#     prompt=prompt,
+#     negative_prompt=negative_prompt,
+#     num_inference_steps=25,
+#     guidance_scale=7.5,
+#     height=1024,
+#     width=768,
+#     generator=generator
+# )
+
+# prompt to encode
 image = pipe(
-    prompt=prompt,
-    negative_prompt=negative_prompt,
+    prompt_embeds=pos_prompt_embeds,
+    pooled_prompt_embeds=pos_pooled_prompt_embeds,
+    negative_prompt_embeds=neg_prompt_embeds,
+    negative_pooled_prompt_embeds=neg_pooled_prompt_embeds,
     num_inference_steps=25,
     guidance_scale=7.5,
     height=1024,
