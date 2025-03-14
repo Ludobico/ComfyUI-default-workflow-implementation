@@ -57,7 +57,7 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # 1은 생성할 이미지 개수
 batch_size = pos_prompt_embeds.shape[0] * 1
 
-latents = prepare_latents(batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, None, generator, vae_scale_factor)
+latents = prepare_latents(batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
 
 pipe = StableDiffusionXLPipeline(
     unet=converted_unet,
@@ -92,7 +92,8 @@ image = pipe(
     negative_pooled_prompt_embeds=neg_pooled_prompt_embeds,
     num_inference_steps=num_inference_steps,
     guidance_scale=7.5,
-    latents=latents
+    latents=latents,
+    generator=generator
 )
 
 output = image.images[0]
