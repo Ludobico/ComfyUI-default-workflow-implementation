@@ -19,23 +19,23 @@ def highlight_print(
     
     # Match the color and apply formatting
     if color is None or color == 'none':
-        print(target, **kwargs)
+        print(str(target), **kwargs)
     elif color == 'red':
-        print(RED + target + RESET, **kwargs)
+        print(RED + str(target) + RESET, **kwargs)
     elif color == 'green':
         print(GREEN + str(target) + RESET, **kwargs)
     elif color == 'blue':
-        print(BLUE + target + RESET, **kwargs)
+        print(BLUE + str(target) + RESET, **kwargs)
     elif color == 'yellow':
-        print(YELLOW + target + RESET, **kwargs)
+        print(YELLOW + str(target) + RESET, **kwargs)
     elif color == 'magenta':
-        print(MAGENTA + target + RESET, **kwargs)
+        print(MAGENTA + str(target) + RESET, **kwargs)
     elif color == 'cyan':
-        print(CYAN + target + RESET, **kwargs)
+        print(CYAN + str(target) + RESET, **kwargs)
     elif color == 'white':
-        print(WHITE + target + RESET, **kwargs)
+        print(WHITE + str(target) + RESET, **kwargs)
     else:
         print(f"Unknown color '{color}', printing without color:")
-        print(target, **kwargs)
+        print(str(target), **kwargs)
 
     print('-' * 80)
