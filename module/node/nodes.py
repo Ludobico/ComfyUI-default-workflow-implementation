@@ -11,6 +11,7 @@ from module.model_state import extract_model_components
 from module.model_architecture import UNet, VAE, TextEncoder
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from typing import Union
+from module.encoder import PromptEncoder
 
 env = GetEnv()
 
@@ -55,14 +56,30 @@ def load_checkpoint(ckpt_name : Union[os.PathLike, str]):
         enc1, enc2 = convert_clip_from_ckpt_sd(original_encoder, ckpt_clip, model_type)
         clip = (enc1, enc2)
         return model, clip, vae
+    
+    elif model_type == 'sd15':
+        original_unet = UNet.sd15()
+        original_vae = VAE.sd15()
+        original_encoder = TextEncoder.sd15_enc()
+        
+        model = convert_clip_from_ckpt_sd(original_unet, ckpt_model)
+        vae = convert_vae_from_ckpt_sd(original_vae, ckpt_vae)
+        clip = convert_clip_from_ckpt_sd(original_encoder, ckpt_clip, model_type)
+        return model, clip, vae
 
 
 
-def CLIP_text_encode(prompt : str):
+
+def CLIP_text_encode(clip, text : str):
     """
     The CLIPTextEncode node is designed to encode textual inputs using a CLIP model, transforming text into a form that can be utilized for conditioning in generative tasks. It abstracts the complexity of text tokenization and encoding, providing a streamlined interface for generating text-based conditioning vectors.
+
+    ## Input types
+    text : The `text` parameter is the textual input that will be encoded. It plays a crucial role in determining the output conditioning vector, as it is the primary source of information for the encoding process
+
+    clip : The `clip` parameter represents the CLIP model used for tet tokenization and encoding. It is essential for converting the textual into a conditioning vector. influencing the quality and relevance of the generated output.
     """
-    return prompt
+    return text
 
 
 

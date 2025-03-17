@@ -1,7 +1,7 @@
 import os
 from typing import Literal, Optional, Dict, Tuple
 from safetensors.torch import load_file
-from utils import get_cpu_device, get_torch_device, highlight_print
+from utils import highlight_print
 import torch
 from config.getenv import GetEnv
 from module.module_utils import load_checkpoint_file, auto_model_detection

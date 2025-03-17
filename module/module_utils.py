@@ -1,7 +1,8 @@
 import os
 from typing import Literal, Optional, Dict
 from safetensors.torch import load_file
-from utils import get_cpu_device, get_torch_device, highlight_print, get_memory_info
+from utils import highlight_print
+from module.torch_utils import get_cpu_device, get_torch_device, get_memory_info
 import torch
 from config.getenv import GetEnv
 from diffusers import UNet2DConditionModel
