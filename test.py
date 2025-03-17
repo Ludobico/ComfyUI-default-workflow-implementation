@@ -4,9 +4,11 @@ from module.model_state import get_model_keys, extract_model_components
 from module.module_utils import auto_model_detection
 import os
 from module.model_architecture import UNet
-env = GetEnv()
+from module.torch_utils import create_seed_generators
 
-vram_info, _ = get_memory_info(verbose=False)
+batch_size = 5
 
-print(_)
-print(vram_info)
+rand_gen = create_seed_generators(5, task='fixed')
+
+for gen in rand_gen:
+    highlight_print(gen.initial_seed(), 'blue')
