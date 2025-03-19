@@ -75,7 +75,12 @@ def CLIP_text_encode(clip, text : str):
     ## Output types
     conditioning : The output `conditioning` is a vector representation of the input text, encoded by the CLIP model. It serves as a crucial component for guiding generative models in producing relevant and coherent outputs.
     """
-    return text
+    encoder = PromptEncoder()
+    if MODEL_TYPE == 'sdxl':
+        prompt_embeds, pooled_prompt_embeds = encoder.sdxl_text_conditioning(prompt=text, clip=clip)
+        conditioning = (prompt_embeds, pooled_prompt_embeds)
+        return conditioning
+
 
 def empty_latent_image(width : int = 512, height : int = 512, batch_size : int = 1):
     """

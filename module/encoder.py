@@ -77,7 +77,7 @@ class PromptEncoder(TextualInversionLoaderMixin):
 
         prompt = self.maybe_convert_prompt(prompt, tokenizer)
 
-        text_inputs = tokenizer(prompt, padding="max_length", max_length=tokenizer.max_length, truncation=True, return_tensors="pt")
+        text_inputs = tokenizer(prompt, padding="max_length", max_length=tokenizer.model_max_length, truncation=True, return_tensors="pt")
         text_input_ids = text_inputs.input_ids
         untruncated_ids = tokenizer(prompt, padding="longest", return_tensors='pt').input_ids
 
@@ -117,10 +117,16 @@ class PromptEncoder(TextualInversionLoaderMixin):
         return prompt_embeds
         
 
-def clip_preprocess(prompt_embeds, pooled_prompt_embeds, batch_size):
+def sdxl_clip_postprocess(prompt_embeds, pooled_prompt_embeds, batch_size):
     bs_embed, seq_len, _ = prompt_embeds.shape
     prompt_embeds = prompt_embeds.repeat(1, batch_size, 1)
     prompt_embeds = prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
     pooled_prompt_embeds = pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
-    return 
+    return (prompt_embeds, pooled_prompt_embeds)
+
+def sd_clip_postprocess(prompt_embeds, batch_size):
+    bs_embed, seq_len, _ = prompt_embeds.shape
+    prompt_embeds = prompt_embeds.repeat(1, batch_size, 1)
+    prompt_embeds = prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
+    return prompt_embeds
 
