@@ -117,5 +117,10 @@ class PromptEncoder(TextualInversionLoaderMixin):
         return prompt_embeds
         
 
-
+def clip_preprocess(prompt_embeds, pooled_prompt_embeds, batch_size):
+    bs_embed, seq_len, _ = prompt_embeds.shape
+    prompt_embeds = prompt_embeds.repeat(1, batch_size, 1)
+    prompt_embeds = prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
+    pooled_prompt_embeds = pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
+    return 
 
