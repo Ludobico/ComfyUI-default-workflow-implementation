@@ -1,9 +1,4 @@
 import os, sys
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 from pathlib import Path
 from config.getenv import GetEnv
 from module.module_utils import limit_vram_usage
@@ -68,8 +63,6 @@ def load_checkpoint(ckpt_name : Union[os.PathLike, str]):
         return model, clip, vae
 
 
-
-
 def CLIP_text_encode(clip, text : str):
     """
     The CLIPTextEncode node is designed to encode textual inputs using a CLIP model, transforming text into a form that can be utilized for conditioning in generative tasks. It abstracts the complexity of text tokenization and encoding, providing a streamlined interface for generating text-based conditioning vectors.
@@ -78,10 +71,27 @@ def CLIP_text_encode(clip, text : str):
     text : The `text` parameter is the textual input that will be encoded. It plays a crucial role in determining the output conditioning vector, as it is the primary source of information for the encoding process
 
     clip : The `clip` parameter represents the CLIP model used for tet tokenization and encoding. It is essential for converting the textual into a conditioning vector. influencing the quality and relevance of the generated output.
+
+    ## Output types
+    conditioning : The output `conditioning` is a vector representation of the input text, encoded by the CLIP model. It serves as a crucial component for guiding generative models in producing relevant and coherent outputs.
     """
     return text
 
+def empty_latent_image(width : int = 512, height : int = 512, batch_size : int = 1):
+    """
+    The EmptyLatentImage node is designed to generate a blank latent space representation with specified dimensions and batch size. This node serves as a foundational step in generating or manipulating images in latent space, providing a starting point for further image synthesis or modification processes.
 
+    ## Input types
+    width : Specifies the width of the latent image to be generated. This parameter directly influences the spatial dimensions of the resulting latent representation.
+
+    height : Determines the height of the latent image to be generated. This parameter is crucial for defining the spatial dimensions of the latent space representation.
+
+    batch_size : Controls the number of latent images to be generated in a single batch. This allows for the generation of multiple latent representations simultaneously, facilitating batch processing.
+
+    ## Output types
+    latent : The output is a tensor representing a batch of blank latent images, serving as a base for further image generation or manipulation in latent space.
+    """
+    pass
 
 
 if __name__ == "__main__":
