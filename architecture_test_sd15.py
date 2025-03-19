@@ -2,15 +2,16 @@ import os, pdb
 from module.model_architecture import UNet, VAE, TextEncoder
 import torch
 from module.model_state import  extract_model_components
-from utils import get_torch_device, highlight_print
+from utils import  highlight_print
 from config.getenv import GetEnv
 from module.module_utils import load_tokenizer, limit_vram_usage, save_config_files
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
-from diffusers import StableDiffusionXLPipeline
-from module.sampler.sampler_names import euler_ancestral, scheduler_type
+from diffusers import StableDiffusionPipeline
+from module.sampler.sampler_names import euler_ancestral, scheduler_type, dpmpp_2m
 from module.debugging import pipe_from_diffusers
-from module.encoder import PromptEncoder
+from module.encoder import PromptEncoder, sd_clip_postprocess
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
+from module.torch_utils import get_torch_device, create_seed_generators
 
 env = GetEnv()
 torch.cuda.empty_cache()
@@ -25,81 +26,71 @@ device = get_torch_device()
 limit_vram_usage(device=device)
 ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_components(model_path)
 
-
-highlight_print(model_type, 'green')
-pdb.set_trace()
-
 converted_unet = convert_unet_from_ckpt_sd(unet, ckpt_unet_tensors)
 converted_vae = convert_vae_from_ckpt_sd(vae, vae_tensors)
 converted_enc1, converted_enc2 = convert_clip_from_ckpt_sd(enc1, clip_tensors, model_type)
-clip = (converted_enc1, converted_enc2)
+clip = converted_enc1
 
 prompt = "beautiful scenery nature glass bottle landscape, purple galaxy bottle"
 negative_prompt = "text, watermark"
 
-seed = 42
 device = get_torch_device()
 dtype = torch.float16
 limit_vram_usage(device=device)
-generator = torch.Generator(device=device).manual_seed(seed)
 
-tokenizer1, tokenizer2 = load_tokenizer(model_type)
+tokenizer1 = load_tokenizer(model_type)
 
 enc = PromptEncoder()
-pos_prompt_embeds, pos_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=prompt, clip=clip)
-neg_prompt_embeds, neg_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=negative_prompt, clip=clip)
+pos_prompt_embeds = enc.sd15_text_conditioning(prompt=prompt, clip=clip)
+neg_prompt_embeds = enc.sd15_text_conditioning(prompt=negative_prompt, clip=clip)
 
 
-scheduler = scheduler_type(euler_ancestral, 'normal')
+scheduler = scheduler_type(dpmpp_2m, 'karras')
 
 timesteps, num_inference_steps = retrieve_timesteps(scheduler, num_inference_steps=25, device=device)
 
 num_channels_latents = unet.config.in_channels
 vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # 1은 생성할 이미지 개수
-batch_size = pos_prompt_embeds.shape[0] * 1
+batch_size = 3
+generator = create_seed_generators(batch_size, task='randomize')
 
-latents = prepare_latents(batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
+pos_prompt_embeds = sd_clip_postprocess(pos_prompt_embeds, batch_size)
+neg_prompt_embeds = sd_clip_postprocess(neg_prompt_embeds, batch_size)
 
-pipe = StableDiffusionXLPipeline(
+latents = prepare_latents(batch_size, num_channels_latents, 512, 512, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
+
+pipe = StableDiffusionPipeline(
     unet=converted_unet,
     vae=converted_vae,
-    text_encoder=clip[0],
-    text_encoder_2=clip[1],
+    text_encoder=clip,
     tokenizer=tokenizer1,
-    tokenizer_2=tokenizer2,
-    scheduler=scheduler
+    scheduler=scheduler,
+    safety_checker=None,
+    requires_safety_checker=False,
+    feature_extractor=None,
 )
 pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
 
-
-# 일반 문자열 프롬프트
-# image = pipe(
-#     prompt=prompt,
-#     negative_prompt=negative_prompt,
-#     num_inference_steps=25,
-#     guidance_scale=7.5,
-#     height=1024,
-#     width=768,
-#     generator=generator
-# )
-
 # implementation
 image = pipe(
     prompt_embeds=pos_prompt_embeds,
-    pooled_prompt_embeds=pos_pooled_prompt_embeds,
     negative_prompt_embeds=neg_prompt_embeds,
-    negative_pooled_prompt_embeds=neg_pooled_prompt_embeds,
     num_inference_steps=num_inference_steps,
     guidance_scale=7.5,
     latents=latents,
     generator=generator
 )
 
-output = image.images[0]
-save_path = env.get_output_dir()
+save_dir = env.get_output_dir()
 
-output.save(os.path.join(save_path, 'output.png'))
+if batch_size == 1:
+    output = image.images[0]
+    output.save(os.path.join(save_dir, 'output_sd.png'))
+elif batch_size > 1:
+    for i, img in enumerate(image.images):
+        save_path = os.path.join(save_dir, f"output_{i}_sd.png")
+        img.save(save_path)
 print("DONE")

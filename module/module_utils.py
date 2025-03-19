@@ -98,7 +98,7 @@ def load_tokenizer(model_type : Literal['sd15', 'sdxl']):
     cache_dir = env.get_tokenizer_dir()
     if model_type == 'sd15':
         tokenizer = CLIPTokenizer.from_pretrained(sd_tok1_dir, cache_dir=cache_dir)
-        return (tokenizer, None)
+        return tokenizer
     elif model_type == 'sdxl':
         tokenizer1 = CLIPTokenizer.from_pretrained(xl_tok1_dir, cache_dir=cache_dir)
         tokenizer2 = CLIPTokenizer.from_pretrained(xl_tok2_dir, cache_dir=cache_dir)
