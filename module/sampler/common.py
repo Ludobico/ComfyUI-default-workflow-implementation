@@ -16,7 +16,7 @@ common = {
     "use_karras_sigmas": False
 }
 
-eular = {
+euler = {
     "num_train_timesteps": 1000,
     "beta_end" : 0.012,
     "beta_schedule" : "scaled_linear",
@@ -100,4 +100,17 @@ dpmpp_2m =  {
     "steps_offset": 1,
     "timestep_spacing": "leading",
     "use_karras_sigmas": False
+}
+
+dpmpp_2m_sde =  {
+    "beta_end": 0.012,
+    "beta_schedule": "scaled_linear",
+    "beta_start": 0.00085,
+    "num_train_timesteps": 1000,
+    "prediction_type": "epsilon",
+    "sample_max_value": 1.0,
+    "steps_offset": 1,
+    "timestep_spacing": "leading",
+    "use_karras_sigmas": False,
+    "algorithm_type" : "sde-dpmsolver++"
 }

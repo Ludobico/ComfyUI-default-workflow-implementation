@@ -93,38 +93,30 @@ pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
 
+# pipe to latent
+highlight_print("ksampler scheduling",'blue')
+scheduler.set_timesteps(num_inference_steps)
 
-# 일반 문자열 프롬프트
-# image = pipe(
-#     prompt=prompt,
-#     negative_prompt=negative_prompt,
-#     num_inference_steps=25,
-#     guidance_scale=7.5,
-#     height=1024,
-#     width=768,
-#     generator=generator
-# )
+combined_prompt_embeds = torch.cat([neg_prompt_embeds, pos_prompt_embeds], dim=0)
+combined_pooled_prompt_embeds = torch.cat([neg_pooled_prompt_embeds, pos_pooled_prompt_embeds], dim=0)
+# CFG
+guidence_scale = 7.5
+for t in scheduler.timesteps:
+    latent_model_input = torch.cat([latents] * 2)
+    latent_model_input = scheduler.scale_model_input(latent_model_input, t)
 
-# implementation
-image = pipe(
-    prompt_embeds=pos_prompt_embeds,
-    pooled_prompt_embeds=pos_pooled_prompt_embeds,
-    negative_prompt_embeds=neg_prompt_embeds,
-    negative_pooled_prompt_embeds=neg_pooled_prompt_embeds,
-    num_inference_steps=num_inference_steps,
-    guidance_scale=7.5,
-    latents=latents,
-    generator=generator
-)
+    with torch.no_grad():
+        noise_pred = converted_unet(
+            latent_model_input,
+            t,
+            encoder_hidden_states = combined_prompt_embeds,
+            pooled_outputs = combined_pooled_prompt_embeds,
+            return_dict=False
+        )[0]
 
-save_dir = env.get_output_dir()
+    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+    noise_pred = noise_pred_uncond + guidence_scale * (noise_pred_text - noise_pred_uncond)
 
-if batch_size == 1:
-    output = image.images[0]
-    output.save(os.path.join(save_dir, 'output.png'))
-elif batch_size > 1:
-    for i, img in enumerate(image.images):
-        save_path = os.path.join(save_dir, f"output_{i}.png")
-        img.save(save_path)
+    latents = scheduler.step(noise_pred, t, latents, generator=generator).prev_sample
 
 print("DONE")

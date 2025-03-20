@@ -9,7 +9,7 @@ import torch
 from module.module_utils import get_torch_device, limit_vram_usage, load_tokenizer, save_config_files
 from config.getenv import GetEnv
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
-from module.sampler.sampler_names import euler_ancestral, scheduler_type
+from module.sampler.sampler_names import scheduler_type
 from module.model_state import  extract_model_components
 from module.model_architecture import UNet, VAE, TextEncoder
 from utils import highlight_print
