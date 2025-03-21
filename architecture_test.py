@@ -4,14 +4,14 @@ import torch
 from module.model_state import  extract_model_components
 from utils import highlight_print
 from config.getenv import GetEnv
-from module.module_utils import load_tokenizer, limit_vram_usage, save_config_files
+from module.module_utils import load_tokenizer, save_config_files
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from diffusers import StableDiffusionXLPipeline
 from module.sampler.sampler_names import  scheduler_type
 from module.debugging import pipe_from_diffusers
 from module.encoder import PromptEncoder
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
-from module.torch_utils import get_torch_device, create_seed_generators
+from module.torch_utils import get_torch_device, create_seed_generators, limit_vram_usage
 
 env = GetEnv()
 torch.cuda.empty_cache()

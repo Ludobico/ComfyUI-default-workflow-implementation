@@ -6,7 +6,8 @@ if project_root not in sys.path:
 import json
 from diffusers import StableDiffusionXLPipeline
 import torch
-from module.module_utils import get_torch_device, limit_vram_usage, load_tokenizer, save_config_files
+from module.module_utils import get_torch_device, load_tokenizer, save_config_files
+from module.torch_utils import limit_vram_usage
 from config.getenv import GetEnv
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from module.sampler.sampler_names import scheduler_type
