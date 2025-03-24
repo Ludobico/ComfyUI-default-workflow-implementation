@@ -95,4 +95,14 @@ def get_memory_info(device_type : Literal['auto', 'cuda', 'cpu'] = 'auto', verbo
         highlight_print(f"Total {memory_type} : {total_memory:.0f} MB", color='green')
 
     return total_memory, memory_type
+
+def limit_vram_usage(device, max_vram_fraction = 0.5):
     
+    vram_info, _ = get_memory_info(verbose=False)
+    # 8gb vram
+    if vram_info < float(8000):
+        max_vram_fraction = 0.9
+    if isinstance(device, str):
+        if device == 'cuda':
+            device = "cuda:0"
+    torch.cuda.set_per_process_memory_fraction(max_vram_fraction, device=device)

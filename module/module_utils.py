@@ -5,7 +5,8 @@ from utils import highlight_print
 from module.torch_utils import get_cpu_device, get_torch_device, get_memory_info
 import torch
 from config.getenv import GetEnv
-from diffusers import UNet2DConditionModel
+from diffusers import UNet2DConditionModel, AutoencoderKL
+from diffusers.models.attention_processor import AttnProcessor2_0, FusedAttnProcessor2_0, XFormersAttnProcessor
 from transformers import CLIPTokenizer
 import json
 
@@ -103,17 +104,6 @@ def load_tokenizer(model_type : Literal['sd15', 'sdxl']):
         tokenizer1 = CLIPTokenizer.from_pretrained(xl_tok1_dir, cache_dir=cache_dir)
         tokenizer2 = CLIPTokenizer.from_pretrained(xl_tok2_dir, cache_dir=cache_dir)
         return (tokenizer1, tokenizer2)
-    
-def limit_vram_usage(device, max_vram_fraction = 0.5):
-    
-    vram_info, _ = get_memory_info(verbose=False)
-    # 8gb vram
-    if vram_info < float(8000):
-        max_vram_fraction = 0.9
-    if isinstance(device, str):
-        if device == 'cuda':
-            device = "cuda:0"
-    torch.cuda.set_per_process_memory_fraction(max_vram_fraction, device=device)
 
 def save_config_files(pipe, unet : bool = True, vae : bool = True, text_encoder : bool = True, tokenizer : bool = True ,suffix : Optional[str] = None):
 
@@ -158,3 +148,21 @@ def save_config_files(pipe, unet : bool = True, vae : bool = True, text_encoder 
 
     
     highlight_print("DONE", 'green')
+
+def upcast_vae(vae : AutoencoderKL):
+    dtype = vae.dtype
+    vae.to(dtype = torch.float32)
+    use_torch_2_0_or_xformers = isinstance(
+        vae.decoder.mid_block.attentions[0].processor,
+            (
+                AttnProcessor2_0,
+                XFormersAttnProcessor,
+                FusedAttnProcessor2_0,
+            ),
+    )
+    if use_torch_2_0_or_xformers:
+        vae.post_quant_conv.to(dtype)
+        vae.decoder.conv_in.to(dtype)
+        vae.decoder.mid_block.to(dtype)
+    
+    return vae
