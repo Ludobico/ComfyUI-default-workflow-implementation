@@ -13,6 +13,7 @@ from module.debugging import pipe_from_diffusers
 from module.encoder import PromptEncoder
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 from module.torch_utils import get_torch_device, create_seed_generators, limit_vram_usage
+from accelerate import cpu_offload_with_hook, cpu_offload
 
 env = GetEnv()
 torch.cuda.empty_cache()
@@ -59,7 +60,7 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # seed = 42
 # generator = torch.Generator(device=device).manual_seed(seed)
 batch_size = 1
-generator = create_seed_generators(batch_size, seed=42, task='randomize')
+generator = create_seed_generators(batch_size, seed=42, task='fixed')
 
 if isinstance(prompt, str):
     latent_batch_size = 1 * batch_size
@@ -81,7 +82,6 @@ neg_pooled_prompt_embeds = neg_pooled_prompt_embeds.repeat(1, batch_size).view(b
 
 empty_latent = prepare_latents(latent_batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
 
-image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
 pipe = StableDiffusionXLPipeline(
     unet=converted_unet,
     vae=converted_vae,
@@ -93,10 +93,9 @@ pipe = StableDiffusionXLPipeline(
 )
 pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
-pipe.enable_attention_slicing()
+# pipe.enable_attention_slicing()
 
 # pipe to latent
-highlight_print("ksampler scheduling",'blue')
 
 latent_output = pipe(
     prompt_embeds=pos_prompt_embeds,
@@ -107,19 +106,29 @@ latent_output = pipe(
     guidance_scale=7.5,
     latents=empty_latent,
     generator=generator,
+    return_dict=False,
     output_type='latent'
 )
 
 # latent section
+latent = latent_output[0]
+converted_vae.to("cpu")
 
-latent = latent_output.images
+torch.cuda.empty_cache()
+# converted_vae.enable_gradient_checkpointing()
+# converted_vae.enable_slicing()
+# converted_vae.enable_tiling()
+# converted_vae = cpu_offload(converted_vae, execution_device=device)
+# _, hook = cpu_offload_with_hook(converted_vae, device)
+
 needs_upcasting = converted_vae.dtype == torch.float16 and converted_vae.config.force_upcast
 
 if needs_upcasting:
     converted_vae = upcast_vae(converted_vae)
     latent = latent.to(next(iter(converted_vae.post_quant_conv.parameters())).dtype)
 elif latent.dtype != converted_vae.dtype:
-    converted_vae = converted_vae.to(latent.dtype)
+    if torch.backends.mps.is_available():
+        converted_vae = converted_vae.to(latent.dtype)
 
 has_latents_mean = hasattr(converted_vae.config, "latents_mean") and converted_vae.config.latents_mean is not None
 has_latents_std = hasattr(converted_vae.config, "latents_std") and converted_vae.config.latents_std is not None
@@ -135,19 +144,22 @@ else:
     latent = latent / converted_vae.config.scaling_factor
 
 highlight_print(converted_vae.dtype, "blue")
-print(converted_vae.post_quant_conv.weight.dtype)
-print(converted_vae.decoder.conv_in.weight.dtype)
-print(converted_vae.decoder.mid_block)
-image = converted_vae.decode(latent, return_dict=False)[0]
+
+# VERY IMPORTANT!! INFERENCING!
+image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
+with torch.no_grad():
+    image = converted_vae.decode(latent, return_dict=False)[0]
+    image = image_processor.postprocess(image, output_type='pil')
 
 if needs_upcasting:
     converted_vae.to(dtype=torch.float16)
-image = image_processor.postprocess(image, output_type='pil')
+
 
 save_dir = env.get_output_dir()
 
 if batch_size == 1:
-    output = image.images[0]
+    # output = image.images[0]
+    output = image[0]
     output.save(os.path.join(save_dir, 'output.png'))
 elif batch_size > 1:
     for i, img in enumerate(image.images):

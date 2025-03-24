@@ -58,7 +58,7 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # seed = 42
 # generator = torch.Generator(device=device).manual_seed(seed)
 batch_size = 1
-generator = create_seed_generators(batch_size, seed=42, task='randomize')
+generator = create_seed_generators(batch_size, seed=42, task='fixed')
 
 if isinstance(prompt, str):
     latent_batch_size = 1 * batch_size
@@ -91,7 +91,7 @@ pipe = StableDiffusionXLPipeline(
 )
 pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
-pipe.enable_attention_slicing()
+# pipe.enable_attention_slicing()
 
 
 # 일반 문자열 프롬프트
@@ -121,7 +121,7 @@ save_dir = env.get_output_dir()
 
 if batch_size == 1:
     output = image.images[0]
-    output.save(os.path.join(save_dir, 'output.png'))
+    output.save(os.path.join(save_dir, 'output_arch.png'))
 elif batch_size > 1:
     for i, img in enumerate(image.images):
         save_path = os.path.join(save_dir, f"output_{i}.png")
