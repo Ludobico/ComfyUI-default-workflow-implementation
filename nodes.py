@@ -2,21 +2,26 @@ import os, sys
 import torch
 from pathlib import Path
 from config.getenv import GetEnv
-from module.module_utils import limit_vram_usage, load_tokenizer
+from module.module_utils import load_tokenizer
 from module.model_state import extract_model_components
 from module.model_architecture import UNet, VAE, TextEncoder
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
-from typing import Union, Literal, Optional
+from typing import Union, Literal, Optional, Tuple, List
 from module.encoder import PromptEncoder, sdxl_clip_postprocess, sd_clip_postprocess
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 from module.sampler.sampler_names import scheduler_type
-from module.torch_utils import create_seed_generators, get_torch_device
+from module.torch_utils import create_seed_generators, get_torch_device, limit_vram_usage
+from module.tensor_utils import randn_tensor
 from diffusers import StableDiffusionXLPipeline
 
 env = GetEnv()
 
 MODEL_TYPE = ""
 ENCODER = None
+num_channels_latents = None
+vae_scale_factor = None
+device = get_torch_device()
+dtype = torch.float16
 
 # All Documentation comes from the ComfyUI Wiki.
 # See https://comfyui-wiki.com/en for more details.
@@ -37,6 +42,8 @@ def load_checkpoint(ckpt_name : Union[os.PathLike, str]):
     vae : Returns the VAE model associated with the loaded checkpoint, if available.
     """
     global MODEL_TYPE
+    global num_channels_latents
+    global vae_scale_factor
 
     if not os.path.isabs(ckpt_name):
         ckpt_dir = env.get_ckpt_dir()
@@ -50,7 +57,9 @@ def load_checkpoint(ckpt_name : Union[os.PathLike, str]):
 
     if model_type == 'sdxl':
         original_unet = UNet.sdxl()
+        num_channels_latents = original_unet.config.in_channels
         original_vae = VAE.sdxl()
+        vae_scale_factor = 2 ** (len(original_vae.config.block_out_channels) - 1)
         original_encoder = TextEncoder.sdxl_enc1()
 
         unet = convert_unet_from_ckpt_sd(original_unet, ckpt_model)
@@ -113,10 +122,14 @@ def empty_latent_image(width : int = 512, height : int = 512, batch_size : int =
     ## Output types
     latent : The output is a tensor representing a batch of blank latent images, serving as a base for further image generation or manipulation in latent space.
     """
-    latent = (height, width, batch_size)
-    return latent
 
-def k_sampler(model, positive, negative, latent_image,
+    empty_latent = (batch_size, num_channels_latents, int(height) // vae_scale_factor, int(width) // vae_scale_factor)
+    return empty_latent
+
+def k_sampler(model : Tuple,
+              positive : str,
+              negative : str,
+              latent_image : Union[Tuple, List],
               seed : Optional[int] = None,
               control_after_generate : Literal['fixed', 'increment', 'decrement', 'randomize'] = 'randomize',
               steps : int = 20,
@@ -153,27 +166,19 @@ def k_sampler(model, positive, negative, latent_image,
     latent : Represents the latent space output of the sampling process, encapsulating the generated samples.
     """
     torch.cuda.empty_cache()
-    env = GetEnv()
-    dtype = torch.float16
-    device = get_torch_device()
-
     limit_vram_usage(device=device)
 
-    height, width, batch_size = latent_image
+    generator = create_seed_generators(latent_image[0], seed=seed, task=control_after_generate)
 
     if MODEL_TYPE == 'sdxl':
         # model = (unet, vae, clip)
         diffuser_scheduler = scheduler_type(sampler_name, scheduler)
         tokenizer1, tokenizer2 = load_tokenizer("sdxl")
-        timesteps, num_inference_steps = retrieve_timesteps(diffuser_scheduler, num_inference_steps=steps, device=device)
-        num_channels_latents = model[0].config.in_channels
-        vae_scale_factor = 2 ** (len(model[1].config.block_out_channels) - 1)
-        generator = create_seed_generators(batch_size, seed=seed, task=control_after_generate)
+        _, num_inference_steps = retrieve_timesteps(diffuser_scheduler, num_inference_steps=steps, device=device)
+        latents = randn_tensor(latent_image, generator, device, dtype)
 
-        positive, pooled_positive = sdxl_clip_postprocess(positive[0], positive[1])
-        negative, pooled_negative = sdxl_clip_postprocess(negative[0], negative[1])
-
-        latents = prepare_latents(batch_size, num_channels_latents, height, width, dtype, torch.device(device), generator, vae_scale_factor)
+        positive_embeds, pooled_positive_embeds = sdxl_clip_postprocess(positive[0], positive[1])
+        negative_embeds, pooled_negative_embeds = sdxl_clip_postprocess(negative[0], negative[1])
 
         pipe = StableDiffusionXLPipeline(
             unet=model[0],
@@ -184,6 +189,26 @@ def k_sampler(model, positive, negative, latent_image,
             tokenizer_2=tokenizer2,
             scheduler=scheduler
         )
+        pipe.to(device=device, dtype=dtype)
+        pipe.enable_model_cpu_offload()
+
+        latent_output = pipe(
+            prompt_embeds=positive_embeds,
+            pooled_prompt_embeds=pooled_positive_embeds,
+            negative_prompt=negative_embeds,
+            negative_pooled_prompt_embeds=pooled_negative_embeds,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=cfg,
+            latents=latents,
+            generator=generator,
+            return_dict=False,
+            output_type="latent"
+        )
+
+        latent_output = latent_output[0]
+        return latent_output
+
+
 
 
 
