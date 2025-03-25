@@ -60,7 +60,7 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # seed = 42
 # generator = torch.Generator(device=device).manual_seed(seed)
 batch_size = 1
-generator = create_seed_generators(batch_size, seed=42, task='fixed')
+generator = create_seed_generators(batch_size, seed=42, task='randomize')
 
 if isinstance(prompt, str):
     latent_batch_size = 1 * batch_size
@@ -78,7 +78,6 @@ bs_embed, seq_len, _ = neg_prompt_embeds.shape
 neg_prompt_embeds = neg_prompt_embeds.repeat(1, batch_size, 1)
 neg_prompt_embeds = neg_prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
 neg_pooled_prompt_embeds = neg_pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
-
 
 empty_latent = prepare_latents(latent_batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
 
@@ -112,9 +111,9 @@ latent_output = pipe(
 
 # latent section
 latent = latent_output[0]
-converted_vae.to("cpu")
+# converted_vae.to("cpu")
 
-torch.cuda.empty_cache()
+# torch.cuda.empty_cache()
 # converted_vae.enable_gradient_checkpointing()
 # converted_vae.enable_slicing()
 # converted_vae.enable_tiling()
@@ -162,6 +161,6 @@ if batch_size == 1:
     output = image[0]
     output.save(os.path.join(save_dir, 'output.png'))
 elif batch_size > 1:
-    for i, img in enumerate(image.images):
+    for i, img in enumerate(image):
         save_path = os.path.join(save_dir, f"output_{i}.png")
         img.save(save_path)

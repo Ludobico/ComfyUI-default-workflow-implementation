@@ -12,6 +12,7 @@ from module.debugging import pipe_from_diffusers
 from module.encoder import PromptEncoder, sd_clip_postprocess
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 from module.torch_utils import get_torch_device, create_seed_generators, limit_vram_usage
+from diffusers.image_processor import VaeImageProcessor
 
 env = GetEnv()
 torch.cuda.empty_cache()
@@ -53,7 +54,7 @@ num_channels_latents = unet.config.in_channels
 vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # 1은 생성할 이미지 개수
 batch_size = 1
-generator = create_seed_generators(batch_size, seed=42 ,task='fixed')
+generator = create_seed_generators(batch_size, task='fixed', seed=42)
 
 pos_prompt_embeds = sd_clip_postprocess(pos_prompt_embeds, batch_size)
 neg_prompt_embeds = sd_clip_postprocess(neg_prompt_embeds, batch_size)
@@ -75,22 +76,31 @@ pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
 
 # implementation
-image = pipe(
+latent_output = pipe(
     prompt_embeds=pos_prompt_embeds,
     negative_prompt_embeds=neg_prompt_embeds,
     num_inference_steps=num_inference_steps,
     guidance_scale=7.5,
     latents=latents,
-    generator=generator
+    generator=generator,
+    return_dict=False,
+    output_type="latent"
 )
+
+latent = latent_output[0]
+latent = latent / converted_vae.config.scaling_factor
+
+image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
+with torch.no_grad():
+    image = converted_vae.decode(latent, return_dict=False, generator=generator)[0]
+    image = image_processor.postprocess(image, output_type="pil")
 
 save_dir = env.get_output_dir()
 
 if batch_size == 1:
-    output = image.images[0]
-    output.save(os.path.join(save_dir, 'output_sd.png'))
+    output = image[0]
+    output.save(os.path.join(save_dir, "output_sd15.png"))
 elif batch_size > 1:
     for i, img in enumerate(image.images):
-        save_path = os.path.join(save_dir, f"output_{i}_sd.png")
+        save_path = os.path.join(save_dir, f"output_sd15_{i}.png")
         img.save(save_path)
-print("DONE")
