@@ -50,8 +50,15 @@ neg_prompt_embeds, neg_pooled_prompt_embeds = enc.sdxl_text_conditioning(prompt=
 
 
 scheduler = scheduler_type('euler_ancestral', 'normal')
+# `set_timesteps` does not support custom timestep schedules. Please check whether you are using the correct scheduler.
+# 몇몇 스케줄러는 타임스탭을 지원하지 않음
+original_timesteps = scheduler.timesteps
 
+# timestpes : 컴퓨터가 디노이징을 진행하는 추론수 보통 1000에서 시작하여 1000 / num_inference_steps 만큼 나누어 1까지 진행
+# timesteps[i] = (num_train_timesteps - 1) - i * (num_train_timesteps / num_inference_steps) + 1
+# num_inference_steps : 유저가 디노이징을 몇번 진행할지 결정하는 상수
 timesteps, num_inference_steps = retrieve_timesteps(scheduler, num_inference_steps=25, device=device)
+
 
 num_channels_latents = unet.config.in_channels
 vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
@@ -60,7 +67,7 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # seed = 42
 # generator = torch.Generator(device=device).manual_seed(seed)
 batch_size = 1
-generator = create_seed_generators(batch_size, seed=42, task='randomize')
+generator = create_seed_generators(batch_size, seed=2024, task='fixed')
 
 if isinstance(prompt, str):
     latent_batch_size = 1 * batch_size
@@ -106,7 +113,7 @@ latent_output = pipe(
     latents=empty_latent,
     generator=generator,
     return_dict=False,
-    output_type='latent'
+    output_type='latent',
 )
 
 # latent section

@@ -13,6 +13,7 @@ from module.encoder import PromptEncoder, sd_clip_postprocess
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 from module.torch_utils import get_torch_device, create_seed_generators, limit_vram_usage
 from diffusers.image_processor import VaeImageProcessor
+import inspect
 
 env = GetEnv()
 torch.cuda.empty_cache()
@@ -47,6 +48,22 @@ neg_prompt_embeds = enc.sd15_text_conditioning(prompt=negative_prompt, clip=clip
 
 
 scheduler = scheduler_type('dpmpp_2m', 'karras')
+original_timesteps = scheduler.timesteps
+        # 8.1 Apply denoising_end
+        # if (
+        #     self.denoising_end is not None
+        #     and isinstance(self.denoising_end, float)
+        #     and self.denoising_end > 0
+        #     and self.denoising_end < 1
+        # ):
+        #     discrete_timestep_cutoff = int(
+        #         round(
+        #             self.scheduler.config.num_train_timesteps
+        #             - (self.denoising_end * self.scheduler.config.num_train_timesteps)
+        #         )
+        #     )
+        #     num_inference_steps = len(list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps)))
+        #     timesteps = timesteps[:num_inference_steps]
 
 timesteps, num_inference_steps = retrieve_timesteps(scheduler, num_inference_steps=25, device=device)
 
@@ -75,6 +92,9 @@ pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
 pipe.enable_attention_slicing()
 
+highlight_print(pipe._get_init_keys())
+pdb.set_trace()
+
 # implementation
 latent_output = pipe(
     prompt_embeds=pos_prompt_embeds,
@@ -84,7 +104,7 @@ latent_output = pipe(
     latents=latents,
     generator=generator,
     return_dict=False,
-    output_type="latent"
+    output_type="latent",
 )
 
 latent = latent_output[0]
