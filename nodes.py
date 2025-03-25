@@ -1,8 +1,7 @@
-import os, sys
+import os
 import torch
-from pathlib import Path
 from config.getenv import GetEnv
-from module.module_utils import load_tokenizer
+from module.module_utils import load_tokenizer, upcast_vae
 from module.model_state import extract_model_components
 from module.model_architecture import UNet, VAE, TextEncoder
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
@@ -12,7 +11,9 @@ from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 from module.sampler.sampler_names import scheduler_type
 from module.torch_utils import create_seed_generators, get_torch_device, limit_vram_usage
 from module.tensor_utils import randn_tensor
-from diffusers import StableDiffusionXLPipeline
+from diffusers import StableDiffusionXLPipeline, StableDiffusionPipeline, AutoencoderKL
+from diffusers.image_processor import VaeImageProcessor
+from utils import highlight_print
 
 env = GetEnv()
 
@@ -169,13 +170,14 @@ def k_sampler(model : Tuple,
     limit_vram_usage(device=device)
 
     generator = create_seed_generators(latent_image[0], seed=seed, task=control_after_generate)
+    diffuser_scheduler = scheduler_type(sampler_name, scheduler)
+    # Most schedulers do not support custom timesteps, so the default value is used in diffusers
+    timesteps, num_inference_steps = retrieve_timesteps(diffuser_scheduler, num_inference_steps=steps, device=device)
+    latents = randn_tensor(latent_image, generator, device, dtype)
 
     if MODEL_TYPE == 'sdxl':
         # model = (unet, vae, clip)
-        diffuser_scheduler = scheduler_type(sampler_name, scheduler)
         tokenizer1, tokenizer2 = load_tokenizer("sdxl")
-        _, num_inference_steps = retrieve_timesteps(diffuser_scheduler, num_inference_steps=steps, device=device)
-        latents = randn_tensor(latent_image, generator, device, dtype)
 
         positive_embeds, pooled_positive_embeds = sdxl_clip_postprocess(positive[0], positive[1])
         negative_embeds, pooled_negative_embeds = sdxl_clip_postprocess(negative[0], negative[1])
@@ -191,6 +193,7 @@ def k_sampler(model : Tuple,
         )
         pipe.to(device=device, dtype=dtype)
         pipe.enable_model_cpu_offload()
+        pipe.enable_attention_slicing()
 
         latent_output = pipe(
             prompt_embeds=positive_embeds,
@@ -202,22 +205,120 @@ def k_sampler(model : Tuple,
             latents=latents,
             generator=generator,
             return_dict=False,
+            output_type="latent",
+            denoising_end=denoise
+        )
+
+        latent_output = latent_output[0]
+        return latent_output
+    
+    if MODEL_TYPE == 'sd15':
+        tokenizer1 = load_tokenizer('sd15')
+        positive_embeds = sd_clip_postprocess(positive)
+        negative_embeds = sd_clip_postprocess(negative)
+
+        pipe = StableDiffusionPipeline(
+            unet=model[0],
+            vae=model[1],
+            text_encoder=model[2],
+            tokenizer=tokenizer1,
+            scheduler=scheduler,
+            safety_checker=None,
+            requires_safety_checker=False,
+            feature_extractor=None
+        )
+        pipe.to(device=device, dtype=dtype)
+        pipe.enable_model_cpu_offload()
+        pipe.enable_attention_slicing()
+
+        if denoise < 1.0 :
+            highlight_print("Warning : Adjusting `denoise` reduces the number of steps. This only shortens the total steps proportionally and does not control the full denoising process precisely, unlike methods that adjust the entire timestep schedule.", 'green')
+            num_inference_steps = round(num_inference_steps * denoise)
+        latent_output = pipe(
+            prompt_embeds=positive_embeds,
+            negative_prompt_embeds=negative_embeds,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=cfg,
+            latents=latents,
+            generator=generator,
+            return_dict=False,
             output_type="latent"
         )
 
         latent_output = latent_output[0]
         return latent_output
+    
+
+def vae_decode(samples : torch.Tensor, vae : AutoencoderKL):
+    """
+    The VAEDecode node is designed for decoding latent representations into images using a specified Variational Autoencoder (VAE). It serves the purpose of generating images from compressed data representations, facilitating the reconstruction of images from their latent space encodings.
+
+    ## Input types
+
+    samples : The ‘samples’ parameter represents the latent representations to be decoded into images. It is crucial for the decoding process as it provides the compressed data from which the images are reconstructed.
+
+    vae : The ‘vae’ parameter specifies the Variational Autoencoder model to be used for decoding the latent representations into images. It is essential for determining the decoding mechanism and the quality of the reconstructed images.
+
+    ## Output types
+
+    image : The output is an image reconstructed from the provided latent representation using the specified VAE model.
+    """
+    image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
+
+    if MODEL_TYPE == 'sdxl':
+        needs_upcasting = vae.dtype == torch.float16 and vae.config.force_upcast
+
+        if needs_upcasting:
+            vae = upcast_vae(vae)
+            samples = samples.to(next(iter(vae.post_quant_conv.parameters())).dtype)
+        elif samples.dtype != vae.dtype:
+            if torch.backends.mps.is_available():
+                vae = vae.to(samples.dtype)
+        
+        has_latents_mean = hasattr(vae.config, "latents_mean") and vae.config.latents_mean is not None
+        has_latents_std = hasattr(vae.config, "latents_std") and vae.config.latents_std is not None
+        if has_latents_mean and has_latents_std:
+            latents_mean = (
+                torch.tensor(vae.config.latents_mean).view(1, 4, 1, 1).to(samples.device, samples.dtype)
+            )
+            latents_std = (
+                torch.tensor(vae.config.latents_std).view(1, 4, 1, 1).to(samples.device, samples.dtype)
+            )
+            samples = samples * latents_std / vae.config.scaling_factor + latents_mean
+        else:
+            samples = samples / vae.config.scaling_factor
 
 
+        with torch.no_grad():
+            image = vae.decode(samples, return_dict=False)[0]
+            image = image_processor.postprocess(image, output_type="pil")
+        
+        if needs_upcasting:
+            vae.to(dtype=dtype)
+        
+        return image
+
+    elif MODEL_TYPE == 'sd15':
+        samples = samples / vae.config.scaling_factor
+
+        with torch.no_grad():
+            image = vae.decode(samples, return_dict=False)[0]
+            image = image_processor.postprocess(image, output_type="pil")
+        
+        return image
+
+
+def save_image(images : List, filename_prefix : str = "ComfyUI"):
+    """
+    The Save Image node is mainly used to save images to the `output` folder. If you only want to preview the image during the intermediate process rather than saving it, you can use the `Preview Image` node. Default save location : `ComfyUI-default-workflow-implementation/output`
+
+    ## Input types
+
+    images : The images to be saved. This parameter is crucial as it directly contains the image data that will be processed and saved to disk.
+    filename_prefix : The filename prefix for images saved to the ComfyUI-default-workflow-implementation/output/ folder. The default is ComfyUI, but you can customize it.
+    """
+    pass
 
 
 
         
-
-
-
-
-
-if __name__ == "__main__":
-    model_path = r"E:\st002\repo\generative\image\ComfyUI_windows_portable_nvidia\ComfyUI_windows_portable\ComfyUI\models\checkpoints\[PONY]prefectPonyXL_v50.safetensors"
-    load_checkpoint(model_path)
