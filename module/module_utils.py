@@ -168,47 +168,31 @@ def upcast_vae(vae : AutoencoderKL):
     return vae
 
 def get_save_image_path(filename_prefix : str, image_width=0, image_height=0) -> Tuple[str, str, int, str, str]:
+    SAVE_DIR = env.get_output_dir()
     def map_filename(filename : str) -> Tuple[int, str]:
-        prefix_len = len(os.path.basename(filename_prefix))
-        prefix = filename[:prefix_len + 1]
-
-        try:
-            digits = int(filename[prefix_len + 1 :].split('_')[0])
-        except:
-            digits = 0
-        return digits, prefix
-    
-    def compute_vars(input : str, image_width : int, image_height : int) -> str:
-            input = input.replace("%width%", str(image_width))
-            input = input.replace("%height%", str(image_height))
-            now = time.localtime()
-            input = input.replace("%year%", str(now.tm_year))
-            input = input.replace("%month%", str(now.tm_mon).zfill(2))
-            input = input.replace("%day%", str(now.tm_mday).zfill(2))
-            input = input.replace("%hour%", str(now.tm_hour).zfill(2))
-            input = input.replace("%minute%", str(now.tm_min).zfill(2))
-            input = input.replace("%second%", str(now.tm_sec).zfill(2))
-            return input
-    
-    if "%" in filename_prefix:
-        filename_prefix = compute_vars(filename_prefix, image_width, image_height)
+        base_prefix = os.path.basename(filename_prefix)
+        if filename.startswith(base_prefix + "_") and filename.endswith('.png'):
+            try:
+                digits = int(filename[len(base_prefix) + 1 : -4])
+                prefix = base_prefix + "_"
+                return digits, prefix
+            except ValueError:
+                return 0, ""
+        return 0, ""
     
     subfolder = os.path.dirname(os.path.normpath(filename_prefix))
     filename = os.path.basename(os.path.normpath(filename_prefix))
-    full_output_folder = os.path.join(env.get_output_dir(), subfolder)
-
-    if os.path.commonpath((env.get_output_dir(), os.path.abspath(full_output_folder))) != env.get_output_dir():
-        raise Exception(f"Error : Saving outside {env.get_output_dir()} is not allowed. \nOutput folder: {full_output_folder}")
+    full_output_folder = os.path.join(SAVE_DIR, subfolder)
 
     try:
         counter = max(
             filter(
-                lambda a: os.path.normcase(a[1][:-1]) == os.path.normcase(filename) and a[1][-1] == "_",
+                lambda a: a[1] == filename + "_",
                 map(map_filename, os.listdir(full_output_folder))
             )
         )[0] + 1
     except (ValueError, FileNotFoundError):
         os.makedirs(full_output_folder, exist_ok=True)
         counter = 1
-
+    
     return full_output_folder, filename, counter, subfolder, filename_prefix

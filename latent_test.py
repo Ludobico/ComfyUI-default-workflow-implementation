@@ -4,7 +4,7 @@ import torch
 from module.model_state import  extract_model_components
 from utils import highlight_print
 from config.getenv import GetEnv
-from module.module_utils import load_tokenizer, save_config_files, upcast_vae
+from module.module_utils import load_tokenizer, save_config_files, upcast_vae, get_save_image_path
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
 from diffusers import StableDiffusionXLPipeline
 from diffusers.image_processor import VaeImageProcessor
@@ -66,8 +66,8 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # batch_size = pos_prompt_embeds.shape[0] * 1
 # seed = 42
 # generator = torch.Generator(device=device).manual_seed(seed)
-batch_size = 1
-generator = create_seed_generators(batch_size, seed=2024, task='fixed')
+batch_size = 2
+generator = create_seed_generators(batch_size, task='randomize')
 
 if isinstance(prompt, str):
     latent_batch_size = 1 * batch_size
@@ -163,11 +163,15 @@ if needs_upcasting:
 
 save_dir = env.get_output_dir()
 
+batch_size = len(image)
+full_output_folder, filename, counter, _, _ = get_save_image_path("ComfyUI")
+
 if batch_size == 1:
-    # output = image.images[0]
     output = image[0]
-    output.save(os.path.join(save_dir, 'output.png'))
-elif batch_size > 1:
+    save_path = os.path.join(full_output_folder, f"{filename}_{counter:03d}.png")
+    output.save(save_path)
+else:
     for i, img in enumerate(image):
-        save_path = os.path.join(save_dir, f"output_{i}.png")
+        save_path = os.path.join(full_output_folder, f"{filename}_{counter + i:03d}.png")
         img.save(save_path)
+        print(f"Saved image {i + 1}/{batch_size}: {save_path}")
