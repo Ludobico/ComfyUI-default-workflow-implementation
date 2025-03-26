@@ -1,7 +1,7 @@
 import os
 import torch
 from config.getenv import GetEnv
-from module.module_utils import load_tokenizer, upcast_vae
+from module.module_utils import load_tokenizer, upcast_vae, get_save_image_path
 from module.model_state import extract_model_components
 from module.model_architecture import UNet, VAE, TextEncoder
 from module.converter.conversion import convert_unet_from_ckpt_sd, convert_vae_from_ckpt_sd, convert_clip_from_ckpt_sd
@@ -317,7 +317,19 @@ def save_image(images : List, filename_prefix : str = "ComfyUI"):
     images : The images to be saved. This parameter is crucial as it directly contains the image data that will be processed and saved to disk.
     filename_prefix : The filename prefix for images saved to the ComfyUI-default-workflow-implementation/output/ folder. The default is ComfyUI, but you can customize it.
     """
-    pass
+    batch_size = len(images)
+    full_output_folder, filename, counter, _, _ = get_save_image_path(filename_prefix)
+
+    if batch_size == 1:
+        output = images[0]
+        save_path = os.path.join(full_output_folder, f"{filename}_{counter:03d}.png")
+        output.save(save_path)
+        f"Saved image : {save_path}"
+    else:
+        for i, img in enumerate(images):
+            save_path = os.path.join(full_output_folder, f"{filename}_{counter + i:03d}.png")
+            img.save(save_path)
+            print(f"Saved image {i + 1}/{batch_size}: {save_path}")
 
 
 
