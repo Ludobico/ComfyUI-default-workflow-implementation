@@ -14,7 +14,7 @@ __pycache__/
 __pycache__
 
 # debugging
-./architecture_test_sd15.py
-./architecture_test.py
-./latent_test.py
-./latent_test_sd15.py
+architecture_test_sd15.py
+architecture_test.py
+latent_test.py
+latent_test_sd15.py
