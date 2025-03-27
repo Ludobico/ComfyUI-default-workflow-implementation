@@ -30,3 +30,11 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 ```bash
 pip install -r requirements.txt
 ```
+
+## Running Locally
+
+```bash
+python default_workflow.py
+```
+
+`Save Image` 노드를 사용할 경우, 생성된 이미지는 `output - ComfyUI_{숫자}`로 저장됩니다.
