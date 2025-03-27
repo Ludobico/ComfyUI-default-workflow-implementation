@@ -53,7 +53,7 @@ def pipe_self_made():
     tokenizer1, tokenizer2 = load_tokenizer(model_type)
 
 
-    schedular = scheduler_type(euler_ancestral, 'normal')
+    schedular = scheduler_type('euler_ancestral', 'normal')
 
     pipe = StableDiffusionXLPipeline(
         unet=converted_unet,

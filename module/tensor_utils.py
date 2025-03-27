@@ -1,5 +1,4 @@
 from typing import Union, Tuple, List, Optional
-from utils import highlight_print
 import torch
 
 def randn_tensor(

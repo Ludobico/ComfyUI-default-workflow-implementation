@@ -3,7 +3,6 @@ from diffusers import EulerDiscreteScheduler
 SD_name = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 SDXL_name = "stabilityai/stable-diffusion-xl-base-1.0"
 
-temp_dir = r"C:\Users\aqs45\OneDrive\Desktop\repo\ComfyUI-default-workflow-implementation\temp"
 scheduler = EulerDiscreteScheduler.from_pretrained(SD_name, subfolder="scheduler")
 
 print(scheduler.config)

@@ -6,8 +6,8 @@ if project_root not in sys.path:
 from module.converter.sd_to_diffuser import convert_unet, convert_vae, convert_text_encoder, convert_text_encoder_2
 from typing import Dict, Literal
 from config.getenv import GetEnv
-from module.model_architecture import UNet, VAE, TextEncoder
-from transformers import CLIPTextModel, CLIPTextModelWithProjection
+from module.model_architecture import TextEncoder
+from transformers import CLIPTextModel
 from config.getenv import GetEnv
 from diffusers import UNet2DConditionModel, AutoencoderKL
 

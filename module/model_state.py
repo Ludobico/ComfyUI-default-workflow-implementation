@@ -1,12 +1,8 @@
 import os
 from typing import Literal, Optional, Dict, Tuple
-from safetensors.torch import load_file
 from utils import highlight_print
-import torch
 from config.getenv import GetEnv
 from module.module_utils import load_checkpoint_file, auto_model_detection
-from diffusers import UNet2DConditionModel, StableDiffusionXLPipeline, StableDiffusionPipeline
-from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
 
 env = GetEnv()
 

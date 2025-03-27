@@ -1,10 +1,8 @@
 import torch
-from transformers import CLIPTokenizer, CLIPTextModel, CLIPTextModelWithProjection
+from transformers import CLIPTextModel, CLIPTextModelWithProjection
 from typing import Tuple, Optional
 from module.module_utils import load_tokenizer
 from diffusers.loaders.textual_inversion import TextualInversionLoaderMixin
-import pdb
-from utils import highlight_print
 
 class PromptEncoder(TextualInversionLoaderMixin):
     def sdxl_text_conditioning(

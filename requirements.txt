@@ -41,12 +41,9 @@ scipy==1.15.2
 six==1.17.0
 sympy==1.13.1
 tokenizers==0.21.0
-# torch==2.5.1+cu121
-# torchaudio==2.5.1+cu121
 torchdiffeq==0.2.5
 torchmetrics==1.6.2
 torchsde==0.2.6
-# torchvision==0.20.1+cu121
 tqdm==4.67.1
 trampoline==0.1.2
 transformers==4.49.0
