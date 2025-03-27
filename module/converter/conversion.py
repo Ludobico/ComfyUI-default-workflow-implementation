@@ -34,7 +34,7 @@ def convert_clip_from_ckpt_sd(clip_model : CLIPTextModel, ckpt_clip_sd : Dict, m
 
     if model_type == 'sd15':
         prefix = "cond_stage_model.model."
-        return (converted_clip1_checkpoint, None)
+        return converted_clip1_checkpoint
     
     elif model_type == 'sdxl':
         prefix = "conditioner.embedders.1.model."

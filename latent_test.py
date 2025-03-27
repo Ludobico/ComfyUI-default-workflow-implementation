@@ -10,7 +10,7 @@ from diffusers import StableDiffusionXLPipeline
 from diffusers.image_processor import VaeImageProcessor
 from module.sampler.sampler_names import  scheduler_type
 from module.debugging import pipe_from_diffusers
-from module.encoder import PromptEncoder
+from module.encoder import PromptEncoder, sdxl_clip_postprocess
 from module.sampler.ksample_elements import retrieve_timesteps, prepare_latents
 from module.torch_utils import get_torch_device, create_seed_generators, limit_vram_usage
 from accelerate import cpu_offload_with_hook, cpu_offload
@@ -66,7 +66,7 @@ vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
 # batch_size = pos_prompt_embeds.shape[0] * 1
 # seed = 42
 # generator = torch.Generator(device=device).manual_seed(seed)
-batch_size = 2
+batch_size = 1
 generator = create_seed_generators(batch_size, task='randomize')
 
 if isinstance(prompt, str):
@@ -76,17 +76,20 @@ elif isinstance(prompt, list):
 
 # latent_batch_size (생성할 개수)가 2이상일수도 있으니 prompt_embeds 에서 따로 전처리필요, diffusers에는 encoding에서 수행하지만 comfy에서는 다른곳에서 수행
 # 함수로 따로 만들어야할듯
-bs_embed, seq_len, _ = pos_prompt_embeds.shape
-pos_prompt_embeds = pos_prompt_embeds.repeat(1, batch_size, 1)
-pos_prompt_embeds = pos_prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
-pos_pooled_prompt_embeds = pos_pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
+# bs_embed, seq_len, _ = pos_prompt_embeds.shape
+# pos_prompt_embeds = pos_prompt_embeds.repeat(1, batch_size, 1)
+# pos_prompt_embeds = pos_prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
+# pos_pooled_prompt_embeds = pos_pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
 
-bs_embed, seq_len, _ = neg_prompt_embeds.shape
-neg_prompt_embeds = neg_prompt_embeds.repeat(1, batch_size, 1)
-neg_prompt_embeds = neg_prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
-neg_pooled_prompt_embeds = neg_pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
+# bs_embed, seq_len, _ = neg_prompt_embeds.shape
+# neg_prompt_embeds = neg_prompt_embeds.repeat(1, batch_size, 1)
+# neg_prompt_embeds = neg_prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
+# neg_pooled_prompt_embeds = neg_pooled_prompt_embeds.repeat(1, batch_size).view(bs_embed * batch_size, -1)
 
-empty_latent = prepare_latents(latent_batch_size, num_channels_latents, 768, 1024, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
+positive_embeds, pooled_positive_embeds = sdxl_clip_postprocess(pos_prompt_embeds, pos_pooled_prompt_embeds, batch_size=batch_size)
+negative_embeds, pooled_negative_embeds = sdxl_clip_postprocess(neg_prompt_embeds, neg_pooled_prompt_embeds, batch_size=batch_size)
+
+empty_latent = prepare_latents(latent_batch_size, num_channels_latents, 1024, 1024, pos_prompt_embeds.dtype, torch.device(device), generator, vae_scale_factor)
 
 pipe = StableDiffusionXLPipeline(
     unet=converted_unet,
@@ -99,7 +102,7 @@ pipe = StableDiffusionXLPipeline(
 )
 pipe.to(device=device, dtype=torch.float16)
 pipe.enable_model_cpu_offload()
-# pipe.enable_attention_slicing()
+pipe.enable_attention_slicing()
 
 # pipe to latent
 

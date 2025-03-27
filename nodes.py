@@ -1,4 +1,4 @@
-import os
+import os, pdb
 import torch
 from config.getenv import GetEnv
 from module.module_utils import load_tokenizer, upcast_vae, get_save_image_path
@@ -72,10 +72,12 @@ def load_checkpoint(ckpt_name : Union[os.PathLike, str]):
     
     elif model_type == 'sd15':
         original_unet = UNet.sd15()
+        num_channels_latents = original_unet.config.in_channels
         original_vae = VAE.sd15()
         original_encoder = TextEncoder.sd15_enc()
+        vae_scale_factor = 2 ** (len(original_vae.config.block_out_channels) - 1)
         
-        unet = convert_clip_from_ckpt_sd(original_unet, ckpt_model)
+        unet = convert_unet_from_ckpt_sd(original_unet, ckpt_model)
         vae = convert_vae_from_ckpt_sd(original_vae, ckpt_vae)
         clip = convert_clip_from_ckpt_sd(original_encoder, ckpt_clip, model_type)
         model = (unet, vae, clip)
@@ -101,7 +103,7 @@ def CLIP_text_encode(text : str, clip):
         prompt_embeds, pooled_prompt_embeds = ENCODER.sdxl_text_conditioning(prompt=text, clip=clip)
         conditioning = (prompt_embeds, pooled_prompt_embeds)
         return conditioning
-    elif MODEL_TYPE == 'sd':
+    elif MODEL_TYPE == 'sd15':
         prompt_embeds = ENCODER.sd15_text_conditioning(prompt=text, clip=clip)
         conditioning = prompt_embeds
         return conditioning
@@ -124,7 +126,7 @@ def empty_latent_image(width : int = 512, height : int = 512, batch_size : int =
     latent : The output is a tensor representing a batch of blank latent images, serving as a base for further image generation or manipulation in latent space.
     """
 
-    empty_latent = (batch_size, num_channels_latents, int(height) // vae_scale_factor, int(width) // vae_scale_factor)
+    empty_latent = (batch_size, num_channels_latents, height // vae_scale_factor, width // vae_scale_factor)
     return empty_latent
 
 def k_sampler(model : Tuple,
@@ -173,14 +175,12 @@ def k_sampler(model : Tuple,
     diffuser_scheduler = scheduler_type(sampler_name, scheduler)
     # Most schedulers do not support custom timesteps, so the default value is used in diffusers
     timesteps, num_inference_steps = retrieve_timesteps(diffuser_scheduler, num_inference_steps=steps, device=device)
-    latents = randn_tensor(latent_image, generator, device, dtype)
+    empty_latent = randn_tensor(shape=latent_image, generator=generator, device=torch.device(device), dtype=dtype)
 
     if MODEL_TYPE == 'sdxl':
-        # model = (unet, vae, clip)
         tokenizer1, tokenizer2 = load_tokenizer("sdxl")
-
-        positive_embeds, pooled_positive_embeds = sdxl_clip_postprocess(positive[0], positive[1])
-        negative_embeds, pooled_negative_embeds = sdxl_clip_postprocess(negative[0], negative[1])
+        positive_embeds, pooled_positive_embeds = sdxl_clip_postprocess(positive[0], positive[1], batch_size=latent_image[0])
+        negative_embeds, pooled_negative_embeds = sdxl_clip_postprocess(negative[0], negative[1], batch_size=latent_image[0])
 
         pipe = StableDiffusionXLPipeline(
             unet=model[0],
@@ -189,7 +189,7 @@ def k_sampler(model : Tuple,
             text_encoder_2=model[2][1],
             tokenizer=tokenizer1,
             tokenizer_2=tokenizer2,
-            scheduler=scheduler
+            scheduler=diffuser_scheduler
         )
         pipe.to(device=device, dtype=dtype)
         pipe.enable_model_cpu_offload()
@@ -198,11 +198,11 @@ def k_sampler(model : Tuple,
         latent_output = pipe(
             prompt_embeds=positive_embeds,
             pooled_prompt_embeds=pooled_positive_embeds,
-            negative_prompt=negative_embeds,
+            negative_prompt_embeds=negative_embeds,
             negative_pooled_prompt_embeds=pooled_negative_embeds,
             num_inference_steps=num_inference_steps,
             guidance_scale=cfg,
-            latents=latents,
+            latents=empty_latent,
             generator=generator,
             return_dict=False,
             output_type="latent",
@@ -214,15 +214,15 @@ def k_sampler(model : Tuple,
     
     if MODEL_TYPE == 'sd15':
         tokenizer1 = load_tokenizer('sd15')
-        positive_embeds = sd_clip_postprocess(positive)
-        negative_embeds = sd_clip_postprocess(negative)
+        positive_embeds = sd_clip_postprocess(positive, batch_size=latent_image[0])
+        negative_embeds = sd_clip_postprocess(negative, batch_size=latent_image[0])
 
         pipe = StableDiffusionPipeline(
             unet=model[0],
             vae=model[1],
             text_encoder=model[2],
             tokenizer=tokenizer1,
-            scheduler=scheduler,
+            scheduler=diffuser_scheduler,
             safety_checker=None,
             requires_safety_checker=False,
             feature_extractor=None
@@ -239,7 +239,7 @@ def k_sampler(model : Tuple,
             negative_prompt_embeds=negative_embeds,
             num_inference_steps=num_inference_steps,
             guidance_scale=cfg,
-            latents=latents,
+            latents=empty_latent,
             generator=generator,
             return_dict=False,
             output_type="latent"
@@ -324,12 +324,38 @@ def save_image(images : List, filename_prefix : str = "ComfyUI"):
         output = images[0]
         save_path = os.path.join(full_output_folder, f"{filename}_{counter:03d}.png")
         output.save(save_path)
-        f"Saved image : {save_path}"
+        print(f"Saved image : {save_path}")
     else:
         for i, img in enumerate(images):
             save_path = os.path.join(full_output_folder, f"{filename}_{counter + i:03d}.png")
             img.save(save_path)
             print(f"Saved image {i + 1}/{batch_size}: {save_path}")
+
+
+def preview_image(images : List):
+    """
+    The previewImage node is designed for creating temporary preview images. It automatically generates a unique temporary file name for each image, compresses the image to a specified level, and saves it to a temporary directory. This functionality is particularly useful for generating previews of images during processing without affecting the original files.\n
+
+    **However, this implementation takes a different approach.**\n
+
+    This node is designed to display images directly using `Image.show()` without generating a temporary file name or saving to a temporary diretory.
+
+    ## Input types
+
+    images : The ‘images’ input specifies the images to be processed and saved as temporary preview images. This is the primary input for the node, determining which images will undergo the preview generation process.
+
+    ## Output types
+
+    The node doesn’t have output types.
+    """
+    batch_size = len(images)
+    
+    if batch_size == 1:
+        output = images[0]
+        output.show()
+    else:
+        for img in images:
+            img.show()
 
 
 

@@ -28,7 +28,7 @@ ckpt_unet_tensors, clip_tensors, vae_tensors, model_type = extract_model_compone
 
 converted_unet = convert_unet_from_ckpt_sd(unet, ckpt_unet_tensors)
 converted_vae = convert_vae_from_ckpt_sd(vae, vae_tensors)
-converted_enc1, converted_enc2 = convert_clip_from_ckpt_sd(enc1, clip_tensors, model_type)
+converted_enc1 = convert_clip_from_ckpt_sd(enc1, clip_tensors, model_type)
 clip = converted_enc1
 
 prompt = "beautiful scenery nature glass bottle landscape, purple galaxy bottle"
