@@ -127,3 +127,4 @@ def sd_clip_postprocess(prompt_embeds, batch_size):
     prompt_embeds = prompt_embeds.repeat(1, batch_size, 1)
     prompt_embeds = prompt_embeds.view(bs_embed * batch_size, seq_len, -1)
     return prompt_embeds
+
