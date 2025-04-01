@@ -28,7 +28,7 @@ def load_checkpoint_file(ckpt, device : Literal['auto', 'gpu', 'cpu'] = 'auto'):
     if ext == '.safetensors':
         sd = load_file(ckpt, device=device)
     elif ext == '.ckpt':
-        model = torch.load(ckpt, map_location=device)
+        model = torch.load(ckpt, map_location=device, weights_only=False)
         if "state_dict" in model:
             sd = model['state_dict']
         else:
