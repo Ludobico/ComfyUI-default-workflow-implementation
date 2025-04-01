@@ -51,7 +51,7 @@ def load_checkpoint(ckpt_name : Union[os.PathLike, str]):
         ckpt_name = os.path.join(ckpt_dir, ckpt_name)
     
     if not os.path.isfile(ckpt_name):
-        raise FileNotFoundError(f"Checkpoint file (.bin or .safetensors) not found : {ckpt_name}")
+        raise FileNotFoundError(f"Checkpoint file (.ckpt or .safetensors) not found : {ckpt_name}")
     
     ckpt_model, ckpt_clip, ckpt_vae, model_type = extract_model_components(ckpt_name)
     MODEL_TYPE = model_type
